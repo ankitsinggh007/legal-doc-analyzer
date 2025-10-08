@@ -25,6 +25,7 @@ export default [
         window: "readonly",
         navigator: "readonly",
         localStorage: "readonly",
+        console: "readonly",
       },
     },
 
