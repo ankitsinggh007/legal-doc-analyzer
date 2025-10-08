@@ -24,6 +24,7 @@ export default [
         document: "readonly",
         window: "readonly",
         navigator: "readonly",
+        localStorage: "readonly",
       },
     },
 
@@ -38,6 +39,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       ...prettier.rules,
       "react/react-in-jsx-scope": "off",
+      "react/prop-types": "warn",
     },
 
     settings: {
