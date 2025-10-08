@@ -1,8 +1,12 @@
+import { Routes, Route } from "react-router-dom";
+import { AnalyzePage } from "../features/analyze/AnalyzePage.jsx";
 function App() {
   return (
-    <h1 className="text-3xl font-bold underline text-indigo-600">
-      Hello Tailwind hi how are you
-    </h1>
+    <Routes>
+      <Route path="/" element={<div>Home</div>} />
+      <Route path="/analyze" element={<AnalyzePage />} />
+      {/* <Route path="*" element={<NotFoundPage/>} /> */}
+    </Routes>
   );
 }
 
