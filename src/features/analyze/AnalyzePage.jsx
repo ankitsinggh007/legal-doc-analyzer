@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAnalyze } from "../../context/AnalyzeContext";
 import { Container } from "../../components/layout/Container";
 import UploadHeader from "./components/UploadHeader";
 import DropzoneCard from "./components/DropzoneCard";
@@ -11,12 +13,13 @@ export function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const navigate = useNavigate();
+  const { setUploadedFile } = useAnalyze();
 
   const handleFileAccepted = (file) => {
     console.log("✅ File ready:", file.name);
     setStatus("loading");
 
-    // ⏳ simulate API call with 20% random failure fo((testing purposes))
     setTimeout(() => {
       const failed = Math.random() < 0.2;
       if (failed) {
@@ -25,12 +28,16 @@ export function AnalyzePage() {
         return;
       }
 
+      setUploadedFile(file); // store in context
       setResult({
+        // still keep local result
         filename: file.name,
         size: (file.size / 1024 / 1024).toFixed(2),
       });
-      console.log("🎉 Analysis complete:", file.name);
       setStatus("success");
+
+      // redirect after short delay
+      setTimeout(() => navigate("/viewer"), 800);
     }, 2000);
   };
 
