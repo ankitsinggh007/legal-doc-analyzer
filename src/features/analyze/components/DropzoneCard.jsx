@@ -29,8 +29,23 @@ export default function DropzoneCard({ onFileAccepted }) {
 
   return (
     <div
-      className={`w-full max-w-md rounded-md border-2 border-dashed py-16 text-center cursor-pointer
-        ${dragActive ? "border-primary-500 bg-slate-50 dark:bg-slate-800" : "border-slate-300 dark:border-slate-600"}`}
+      role="button"
+      tabIndex={0}
+      aria-label="Upload file"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inputRef.current?.click(); // open file dialog
+        }
+      }}
+      className={`w-full max-w-content rounded-md border-2 border-dashed
+              py-12 sm:py-16 px-4 sm:px-8 text-center cursor-pointer
+              transition-transform hover:scale-[1.01]
+              ${
+                dragActive
+                  ? "border-primary-500 bg-slate-50 dark:bg-slate-800"
+                  : "border-slate-300 dark:border-slate-600"
+              }`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragActive(true);
@@ -56,6 +71,7 @@ export default function DropzoneCard({ onFileAccepted }) {
             onClick={(e) => {
               e.stopPropagation();
               setFile(null);
+              setError("");
             }}
             className="text-primary-600 hover:underline text-sm mt-1"
           >
