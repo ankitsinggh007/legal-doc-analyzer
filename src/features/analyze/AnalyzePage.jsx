@@ -48,7 +48,7 @@ export function AnalyzePage() {
   };
 
   return (
-    <main className="min-h-[80vh] flex flex-col justify-center">
+    <main className="min-h-[80vh] flex flex-col justify-center px-4 sm:px-6 md:px-8">
       <Container>
         <div className="flex flex-col items-center gap-8 text-center">
           <UploadHeader />
