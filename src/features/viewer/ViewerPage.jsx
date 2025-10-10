@@ -14,8 +14,10 @@ export function ViewerPage() {
   if (!uploadedFile) return null;
 
   return (
-    <Container className="py-12 text-center">
-      <h1 className="text-3xl font-semibold mb-4">Document Viewer</h1>
+    <Container className="py-12 sm:py-16 text-center">
+      <h1 className="text-2xl sm:text-3xl font-semibold mb-4">
+        Document Viewer
+      </h1>
       <p className="text-slate-700 dark:text-slate-300">{uploadedFile.name}</p>
       <p className="text-sm text-slate-500">
         Size: {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
