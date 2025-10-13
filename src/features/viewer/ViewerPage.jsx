@@ -4,30 +4,40 @@ import { Container } from "@/components/layout/Container";
 import { useEffect } from "react";
 
 export function ViewerPage() {
-  const { uploadedFile } = useAnalyze();
+  const { parsedText, warning, resetAnalysis } = useAnalyze();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!uploadedFile) navigate("/analyze");
-  }, [uploadedFile, navigate]);
+    if (!parsedText) navigate("/analyze");
+  }, [parsedText, navigate]);
 
-  if (!uploadedFile) return null;
+  if (!parsedText) return null;
 
   return (
-    <Container className="py-12 sm:py-16 text-center">
-      <h1 className="text-2xl sm:text-3xl font-semibold mb-4">
-        Document Viewer
-      </h1>
-      <p className="text-slate-700 dark:text-slate-300">{uploadedFile.name}</p>
-      <p className="text-sm text-slate-500">
-        Size: {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-      </p>
-      <button
-        className="mt-6 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-        onClick={() => navigate("/analyze")}
-      >
-        Upload Another
-      </button>
-    </Container>
+    <main className="py-12 sm:py-16 text-center" aria-label="Contract Viewer">
+      <Container className="">
+        <h1 className="text-2xl sm:text-3xl font-semibold mb-4 text-center">
+          Document Viewer
+        </h1>
+        {warning && <p className="text-amber-600 mb-4">⚠ {warning}</p>}
+        <div
+          tabIndex={0}
+          className="bg-slate-50 dark:bg-slate-800 p-4 rounded-md border
+                   border-slate-200 dark:border-slate-700 text-left
+                   whitespace-pre-wrap overflow-y-auto max-h-[70vh]"
+        >
+          {parsedText}
+        </div>
+        <button
+          onClick={() => {
+            resetAnalysis();
+            navigate("/analyze");
+          }}
+          className="mt-6 text-primary-600 hover:underline"
+        >
+          Upload Another
+        </button>
+      </Container>
+    </main>
   );
 }
