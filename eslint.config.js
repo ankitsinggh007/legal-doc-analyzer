@@ -28,6 +28,8 @@ export default [
         console: "readonly",
         setTimeout: "readonly",
         clearTimeout: "readonly",
+        FileReader: "readonly",
+        URL: "readonly",
       },
     },
 
