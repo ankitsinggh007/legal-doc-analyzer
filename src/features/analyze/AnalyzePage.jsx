@@ -8,6 +8,7 @@ import LoadingCard from "./components/LoadingCard";
 import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
 import FooterHint from "./components/FooterHint";
+import parseDocument from "../../utils/parseDocument";
 
 export function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
@@ -16,29 +17,35 @@ export function AnalyzePage() {
   const navigate = useNavigate();
   const { setUploadedFile } = useAnalyze();
 
-  const handleFileAccepted = (file) => {
-    console.log("✅ File ready:", file.name);
+  const handleFileAccepted = async (file) => {
+    console.log("✅ File ready:", file.name, file.type);
     setStatus("loading");
 
-    setTimeout(() => {
-      const failed = Math.random() < 0.2;
-      if (failed) {
-        setErrorMsg("Server timeout. Please retry.");
-        setStatus("error");
-        return;
-      }
+    try {
+      // 🔹 run parser
+      const { text, warning } = await parseDocument(file);
+      console.log("📄 Parsed text length:", text.length);
 
-      setUploadedFile(file); // store in context
+      if (warning) console.warn(warning);
+
+      // 🔹 persist to context
+      setUploadedFile({ file, text, warning });
+
+      // 🔹 update UI result
       setResult({
-        // still keep local result
         filename: file.name,
         size: (file.size / 1024 / 1024).toFixed(2),
       });
+
       setStatus("success");
 
-      // redirect after short delay
-      setTimeout(() => navigate("/viewer"), 800);
-    }, 2000);
+      // 🔹 short UX delay then navigate
+      setTimeout(() => navigate("/viewer"), 600);
+    } catch (err) {
+      console.error("❌ Parser error:", err.message);
+      setErrorMsg(err.message || "Unexpected parsing error.");
+      setStatus("error");
+    }
   };
 
   const reset = () => {
