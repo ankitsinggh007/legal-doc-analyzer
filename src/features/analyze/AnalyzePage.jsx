@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAnalyze } from "../../context/AnalyzeContext";
 import { Container } from "../../components/layout/Container";
@@ -15,7 +15,14 @@ export function AnalyzePage() {
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
-  const { setUploadedFile } = useAnalyze();
+  const { setUploadedFile, setParsedText, setWarning } = useAnalyze();
+
+  useEffect(() => {
+    if (status === "success") {
+      const id = setTimeout(() => navigate("/viewer"), 600);
+      return () => clearTimeout(id);
+    }
+  }, [status, navigate]);
 
   const handleFileAccepted = async (file) => {
     console.log("✅ File ready:", file.name, file.type);
@@ -29,8 +36,9 @@ export function AnalyzePage() {
       if (warning) console.warn(warning);
 
       // 🔹 persist to context
-      setUploadedFile({ file, text, warning });
-
+      setUploadedFile(file);
+      setParsedText(text);
+      setWarning(warning);
       // 🔹 update UI result
       setResult({
         filename: file.name,
@@ -40,7 +48,6 @@ export function AnalyzePage() {
       setStatus("success");
 
       // 🔹 short UX delay then navigate
-      setTimeout(() => navigate("/viewer"), 600);
     } catch (err) {
       console.error("❌ Parser error:", err.message);
       setErrorMsg(err.message || "Unexpected parsing error.");
