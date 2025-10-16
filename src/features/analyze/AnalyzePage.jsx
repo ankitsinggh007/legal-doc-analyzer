@@ -1,3 +1,5 @@
+import { analyzeMock } from "@/api/analyzeMock";
+import { getCacheKey, getCachedResult, setCachedResult } from "@/utils/cache";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAnalyze } from "../../context/AnalyzeContext";
@@ -15,7 +17,14 @@ export function AnalyzePage() {
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
-  const { setUploadedFile, setParsedText, setWarning } = useAnalyze();
+  const {
+    setUploadedFile,
+    setParsedText,
+    setWarning,
+    setClauses,
+    setSummary,
+    resetAnalysis,
+  } = useAnalyze();
 
   useEffect(() => {
     if (status === "success") {
@@ -29,25 +38,40 @@ export function AnalyzePage() {
     setStatus("loading");
 
     try {
-      // 🔹 run parser
+      // 🔹 Step 1: Parse document
       const { text, warning } = await parseDocument(file);
       console.log("📄 Parsed text length:", text.length);
 
       if (warning) console.warn(warning);
 
-      // 🔹 persist to context
       setUploadedFile(file);
       setParsedText(text);
       setWarning(warning);
-      // 🔹 update UI result
+
+      // 🔹 Step 2: Check cache
+      const cacheKey = getCacheKey(file);
+      const cached = getCachedResult(cacheKey);
+
+      if (cached) {
+        console.log(`⚡ Using cached analysis for ${file.name}`);
+        setClauses(cached.clauses);
+        setSummary(cached.summary);
+      } else {
+        // 🔹 Step 3: Run mock AI analysis
+        const result = await analyzeMock(text);
+        console.log("🧠 AI result:", result);
+
+        setClauses(result.clauses);
+        setSummary(result.summary);
+        setCachedResult(cacheKey, result);
+      }
+
+      // 🔹 Step 4: Update UI
       setResult({
         filename: file.name,
         size: (file.size / 1024 / 1024).toFixed(2),
       });
-
       setStatus("success");
-
-      // 🔹 short UX delay then navigate
     } catch (err) {
       console.error("❌ Parser error:", err.message);
       setErrorMsg(err.message || "Unexpected parsing error.");
@@ -56,6 +80,7 @@ export function AnalyzePage() {
   };
 
   const reset = () => {
+    resetAnalysis();
     setStatus("idle");
     setResult(null);
     setErrorMsg("");
