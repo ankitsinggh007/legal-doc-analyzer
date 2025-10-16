@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useEffect } from "react";
 
 export function ViewerPage() {
-  const { uploadedFile, parsedText } = useAnalyze();
+  const { uploadedFile, parsedText, resetAnalysis } = useAnalyze();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,7 +32,10 @@ export function ViewerPage() {
             </h1>
 
             <button
-              onClick={() => navigate("/analyze")}
+              onClick={() => {
+                resetAnalysis();
+                navigate("/analyze");
+              }}
               className="text-primary-600 hover:underline text-sm"
             >
               Re-upload
