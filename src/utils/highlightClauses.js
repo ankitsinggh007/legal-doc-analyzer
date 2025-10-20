@@ -23,17 +23,19 @@ export function highlightClauses(text, clauses, activeTypes) {
   let lastIndex = 0;
   const safeText = escapeHTML(text); // 🔹 escape once
 
-  clauses.forEach(({ start, end, type }) => {
-    // TODO: Validate AI clause offsets after real model integration
+  clauses.forEach(({ start, end, type }, index) => {
     start = Math.max(0, start);
     end = Math.min(safeText.length, end);
     if (!activeTypes.has(type)) return;
     if (start > lastIndex) fragments.push(safeText.slice(lastIndex, start));
 
     fragments.push(
-      `<mark class="highlight-${type.toLowerCase()}" tabindex="0" aria-label="${type} clause">
-     ${safeText.slice(start, end)}
-   </mark>`
+      `<mark class="highlight-${type.toLowerCase()}" 
+       tabindex="0" 
+       aria-label="${type} clause"
+       data-index="${index}">
+       ${safeText.slice(start, end)}
+     </mark>`
     );
 
     lastIndex = end;
