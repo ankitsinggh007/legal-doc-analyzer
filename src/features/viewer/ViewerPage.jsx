@@ -7,16 +7,35 @@ import { highlightClauses } from "@/utils/highlightClauses";
 
 export function ViewerPage() {
   const { uploadedFile, parsedText, clauses, resetAnalysis } = useAnalyze();
+  const [selectedClause, setSelectedClause] = useState(null);
 
   const navigate = useNavigate();
 
   const [activeTypes, setActiveTypes] = useState(
     new Set(["Termination", "Penalty", "Confidentiality"])
   );
-
+  // Navigation guard
   useEffect(() => {
     if (!parsedText) navigate("/analyze");
   }, [parsedText, navigate]);
+  // Reset selection on re-upload
+  useEffect(() => setSelectedClause(null), [parsedText]);
+  // Manage highlight glow & scroll
+  useEffect(() => {
+    document
+      .querySelectorAll(".highlight-active")
+      .forEach((el) => el.classList.remove("highlight-active"));
+    if (selectedClause) {
+      const idx = clauses.indexOf(selectedClause);
+      const el = document.querySelector(`[data-index="${idx}"]`);
+      if (el) {
+        console.log("i am selected", el);
+        el.classList.add("highlight-active");
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        window.scrollBy(0, -100); // keeps it below top bar
+      }
+    }
+  }, [selectedClause, clauses]);
 
   //useMemo for highlightClauses call — avoids full re-render string rebuild on each toggle.
   const highlightedHTML = useMemo(
@@ -65,9 +84,21 @@ export function ViewerPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Panel: Contract Viewer */}
           <section
-            className="lg:col-span-2 p-4 rounded-md   dark:border-slate-700 border border-slate-200
-                        dark:bg-slate-800 overflow-y-auto max-h-[85vh]"
+            className="lg:col-span-2 p-4 rounded-md dark:border-slate-700 border border-slate-200
+             dark:bg-slate-800 overflow-y-auto max-h-[85vh]"
             aria-label="Contract Text Viewer"
+            onClick={(e) => {
+              const el = e.target.closest("[data-index]");
+              if (!el) return;
+              const idx = Number(el.dataset.index);
+              setSelectedClause(clauses[idx]);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                const el = e.target.closest("[data-index]");
+                if (el) setSelectedClause(clauses[Number(el.dataset.index)]);
+              }
+            }}
           >
             <div
               className="whitespace-pre-wrap text-left leading-relaxed"
@@ -123,9 +154,18 @@ export function ViewerPage() {
               ))}
             </nav>
 
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Click a clause in the document to view details here.
-            </p>
+            {selectedClause ? (
+              <div className="p-3 rounded-md bg-slate-100 dark:bg-slate-700 mt-3 text-sm">
+                <p className="font-semibold mb-1 text-primary-600">
+                  {selectedClause.type} Clause
+                </p>
+                <p>{selectedClause.explanation}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Click a clause in the document to view details here.
+              </p>
+            )}
           </aside>
         </div>
       </Container>

@@ -10,9 +10,15 @@ body {
   @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans;
 }
 
-h1 { @apply text-3xl font-semibold; }
-h2 { @apply text-2xl font-semibold; }
-h3 { @apply text-xl font-medium; }
+h1 {
+  @apply text-3xl font-semibold;
+}
+h2 {
+  @apply text-2xl font-semibold;
+}
+h3 {
+  @apply text-xl font-medium;
+}
 
 button:focus-visible,
 a:focus-visible {
@@ -74,4 +80,8 @@ a:focus-visible {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4); /* soft glow */
   outline: none;
   cursor: pointer;
+}
+.highlight-active {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  outline: none;
 }
