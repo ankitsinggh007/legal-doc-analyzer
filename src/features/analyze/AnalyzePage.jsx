@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { analyzeMock } from "@/api/analyzeMock";
+import { analyzeAI } from "@/api/analyzeAI";
+import { getCacheKey, getCachedResult, setCachedResult } from "@/utils/cache";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAnalyze } from "../../context/AnalyzeContext";
 import { Container } from "../../components/layout/Container";
@@ -8,40 +11,86 @@ import LoadingCard from "./components/LoadingCard";
 import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
 import FooterHint from "./components/FooterHint";
+import parseDocument from "../../utils/parseDocument";
 
 export function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const navigate = useNavigate();
-  const { setUploadedFile } = useAnalyze();
+  const {
+    setUploadedFile,
+    setParsedText,
+    setWarning,
+    setClauses,
+    setSummary,
+    resetAnalysis,
+  } = useAnalyze();
 
-  const handleFileAccepted = (file) => {
-    console.log("✅ File ready:", file.name);
+  useEffect(() => {
+    if (status === "success") {
+      const id = setTimeout(() => navigate("/viewer"), 600);
+      return () => clearTimeout(id);
+    }
+  }, [status, navigate]);
+
+  const handleFileAccepted = async (file) => {
+    console.log("✅ File ready:", file.name, file.type);
     setStatus("loading");
 
-    setTimeout(() => {
-      const failed = Math.random() < 0.2;
-      if (failed) {
-        setErrorMsg("Server timeout. Please retry.");
-        setStatus("error");
-        return;
+    try {
+      // 🔹 Step 1: Parse document
+      const { text, warning } = await parseDocument(file);
+      console.log("📄 Parsed text length:", text.length);
+
+      if (warning) console.warn(warning);
+
+      setUploadedFile(file);
+      setParsedText(text);
+      setWarning(warning);
+      console.log("✅ Env key loaded:", !!import.meta.env.VITE_OPENAI_API_KEY);
+
+      // 🔹 Step 2: Check cache
+      const cacheKey = getCacheKey(file);
+      const cached = getCachedResult(cacheKey);
+
+      if (cached) {
+        console.log(`⚡ Using cached analysis for ${file.name}`);
+        setClauses(cached.clauses);
+        setSummary(cached.summary);
+      } else {
+        // 🔹 Step 3: Choose AI analyzer based on env
+        const useRealAI = import.meta.env.MODE === "production";
+        const analysis = useRealAI
+          ? await analyzeAI(text)
+          : await analyzeMock(text);
+
+        setClauses(analysis.clauses);
+        setSummary(analysis.summary);
+        setCachedResult(cacheKey, analysis);
+
+        console.log("🧠 AI result:", analysis);
+
+        setClauses(analysis.clauses);
+        setSummary(analysis.summary);
+        setCachedResult(cacheKey, result);
       }
 
-      setUploadedFile(file); // store in context
+      // 🔹 Step 4: Update UI
       setResult({
-        // still keep local result
         filename: file.name,
         size: (file.size / 1024 / 1024).toFixed(2),
       });
       setStatus("success");
-
-      // redirect after short delay
-      setTimeout(() => navigate("/viewer"), 800);
-    }, 2000);
+    } catch (err) {
+      console.error("❌ Parser error:", err.message);
+      setErrorMsg(err.message || "Unexpected parsing error.");
+      setStatus("error");
+    }
   };
 
   const reset = () => {
+    resetAnalysis();
     setStatus("idle");
     setResult(null);
     setErrorMsg("");

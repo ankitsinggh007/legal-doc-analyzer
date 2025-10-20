@@ -2,14 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   @apply bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans;
 }
 
-h1 { @apply text-3xl font-semibold; }
-h2 { @apply text-2xl font-semibold; }
-h3 { @apply text-xl font-medium; }
+h1 {
+  @apply text-3xl font-semibold;
+}
+h2 {
+  @apply text-2xl font-semibold;
+}
+h3 {
+  @apply text-xl font-medium;
+}
 
-button:focus-visible, a:focus-visible { @apply outline-none ring-2 ring-primary-500; }
+button:focus-visible,
+a:focus-visible {
+  @apply outline-none ring-2 ring-primary-500;
+}
+
+@layer base {
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* slate-300 */
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; /* slate-400 */
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: #475569; /* slate-600 */
+  }
+}
+/* 🔹 Clause highlight colors */
+.highlight-termination {
+  background-color: #fecaca; /* red-200 */
+  transition: box-shadow 0.15s ease-in-out;
+}
+.highlight-penalty {
+  background-color: #fde68a; /* amber-200 */
+  transition: box-shadow 0.15s ease-in-out;
+}
+.highlight-confidentiality {
+  background-color: #bfdbfe; /* blue-200 */
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+/* Dark mode equivalents */
+.dark .highlight-termination {
+  background-color: #7f1d1d; /* red-900 */
+}
+.dark .highlight-penalty {
+  background-color: #78350f; /* amber-900 */
+}
+.dark .highlight-confidentiality {
+  background-color: #1e3a8a; /* blue-900 */
+}
+
+/* Hover & focus feedback */
+.highlight-termination:hover,
+.highlight-penalty:hover,
+.highlight-confidentiality:hover,
+.highlight-termination:focus-visible,
+.highlight-penalty:focus-visible,
+.highlight-confidentiality:focus-visible {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4); /* soft glow */
+  outline: none;
+  cursor: pointer;
+}
+.highlight-active {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  outline: none;
+}
