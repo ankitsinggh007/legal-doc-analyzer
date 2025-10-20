@@ -1,4 +1,5 @@
 import { analyzeMock } from "@/api/analyzeMock";
+import { analyzeAI } from "@/api/analyzeAI";
 import { getCacheKey, getCachedResult, setCachedResult } from "@/utils/cache";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +48,7 @@ export function AnalyzePage() {
       setUploadedFile(file);
       setParsedText(text);
       setWarning(warning);
+      console.log("✅ Env key loaded:", !!import.meta.env.VITE_OPENAI_API_KEY);
 
       // 🔹 Step 2: Check cache
       const cacheKey = getCacheKey(file);
@@ -57,12 +59,20 @@ export function AnalyzePage() {
         setClauses(cached.clauses);
         setSummary(cached.summary);
       } else {
-        // 🔹 Step 3: Run mock AI analysis
-        const result = await analyzeMock(text);
-        console.log("🧠 AI result:", result);
+        // 🔹 Step 3: Choose AI analyzer based on env
+        const useRealAI = import.meta.env.MODE === "production";
+        const analysis = useRealAI
+          ? await analyzeAI(text)
+          : await analyzeMock(text);
 
-        setClauses(result.clauses);
-        setSummary(result.summary);
+        setClauses(analysis.clauses);
+        setSummary(analysis.summary);
+        setCachedResult(cacheKey, analysis);
+
+        console.log("🧠 AI result:", analysis);
+
+        setClauses(analysis.clauses);
+        setSummary(analysis.summary);
         setCachedResult(cacheKey, result);
       }
 

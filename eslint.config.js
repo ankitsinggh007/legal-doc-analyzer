@@ -30,6 +30,7 @@ export default [
         clearTimeout: "readonly",
         FileReader: "readonly",
         URL: "readonly",
+        fetch: "readonly",
       },
     },
 
