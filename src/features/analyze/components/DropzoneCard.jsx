@@ -15,12 +15,15 @@ export default function DropzoneCard({ onFileAccepted }) {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "text/plain",
     ];
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 2 * 1024 * 1024;
 
     if (!validTypes.includes(selected.type))
       return setError("Only PDF, DOCX, or TXT files are allowed.");
 
-    if (selected.size > maxSize) return setError("File size must be ≤ 10 MB.");
+    if (selected.size > maxSize)
+      return setError(
+        "This document is too large to process. Please upload a shorter contract."
+      );
 
     setError("");
     setFile(selected);

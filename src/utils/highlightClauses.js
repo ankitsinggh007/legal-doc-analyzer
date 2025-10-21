@@ -17,6 +17,7 @@ function escapeHTML(str) {
 // real AI integration will provide correct start/end offsets.
 
 export function highlightClauses(text, clauses, activeTypes) {
+  if (!text) return ""; // 🛑 short-circuit early
   if (!clauses?.length) return escapeHTML(text);
 
   const fragments = [];
