@@ -19,7 +19,6 @@ export async function analyzeAI(text) {
   // ✅ 2. Truncate to prevent token overflow & cost spikes
   if (text.length > 6000) {
     console.warn("⚠️ Document truncated to 6000 characters for safety.");
-    text = text.slice(0, 6000);
   }
 
   // ✅ 3. Compose API request

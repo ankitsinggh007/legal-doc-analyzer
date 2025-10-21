@@ -4,10 +4,17 @@ import { Container } from "@/components/layout/Container";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useState, useEffect, useMemo } from "react";
 import { highlightClauses } from "@/utils/highlightClauses";
+import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
 
 export function ViewerPage() {
-  const { uploadedFile, parsedText, clauses, resetAnalysis, isHydrated } =
-    useAnalyze();
+  const {
+    uploadedFile,
+    parsedText,
+    clauses,
+    resetAnalysis,
+    isHydrated,
+    summary,
+  } = useAnalyze();
   const [selectedClause, setSelectedClause] = useState(null);
 
   const navigate = useNavigate();
@@ -179,6 +186,7 @@ export function ViewerPage() {
                   Click a clause in the document to view details here.
                 </p>
               )}
+              <RiskSummaryPanel summary={summary} />
             </aside>
           </div>
         </Container>
