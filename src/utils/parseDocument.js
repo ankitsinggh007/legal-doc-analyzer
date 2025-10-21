@@ -53,7 +53,11 @@ async function parsePDF(file) {
     text = text.replace(/\n{2,}/g, "\n").trim();
 
     if (!text) throw new Error("This PDF seems image-based or empty.");
-
+    if (text.length > 6000) {
+      throw new Error(
+        "This document exceeds the 6,000-character processing limit."
+      );
+    }
     const warning = nonTextFound
       ? "Some non-text elements were skipped."
       : null;
@@ -83,7 +87,11 @@ async function parseDOCX(file) {
       .trim();
 
     if (!text) throw new Error("This DOCX file seems empty or unreadable.");
-
+    if (text.length > 6000) {
+      throw new Error(
+        "This document exceeds the 6,000-character processing limit."
+      );
+    }
     const nonTextFound = /<img/i.test(html);
     const warning = nonTextFound
       ? "Some non-text elements were skipped."
@@ -106,7 +114,11 @@ function parseTXT(file) {
       reader.onload = () => {
         const text = reader.result.trim();
         if (!text) reject(new Error("Text file is empty."));
-        else resolve({ text, warning: null });
+        if (text.length > 6000) {
+          throw new Error(
+            "This document exceeds the 6,000-character processing limit."
+          );
+        } else resolve({ text, warning: null });
       };
       reader.onerror = () => reject(new Error("Failed to read TXT file."));
       reader.readAsText(file, "utf-8");
