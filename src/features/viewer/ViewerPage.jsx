@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useState, useEffect, useMemo } from "react";
 import { highlightClauses } from "@/utils/highlightClauses";
 import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
-
+import { exportPDF } from "@/utils/exportPDF";
 export function ViewerPage() {
   const {
     uploadedFile,
@@ -16,12 +16,19 @@ export function ViewerPage() {
     summary,
   } = useAnalyze();
   const [selectedClause, setSelectedClause] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const navigate = useNavigate();
 
   const [activeTypes, setActiveTypes] = useState(
     new Set(["Termination", "Penalty", "Confidentiality"])
   );
+  useEffect(() => {
+    if (toast) {
+      const id = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(id);
+    }
+  }, [toast]);
 
   // Navigation guard
   useEffect(() => {
@@ -96,7 +103,22 @@ export function ViewerPage() {
               >
                 Clear All Data
               </button>
+              <button
+                onClick={() =>
+                  exportPDF({
+                    fileName: uploadedFile?.name,
+                    clauses,
+                    summary,
+                    parsedText,
+                    setToast,
+                  })
+                }
+                className="text-green-600 hover:underline text-sm ml-3"
+              >
+                Export PDF
+              </button>
             </div>
+
             <ThemeToggle />
           </header>
 
@@ -190,6 +212,18 @@ export function ViewerPage() {
             </aside>
           </div>
         </Container>
+      )}
+      {toast && (
+        <div
+          className={`fixed bottom-4 right-6 px-4 py-2 rounded-md shadow-md text-sm font-medium transition-all duration-300
+      ${
+        toast.type === "success"
+          ? "bg-green-100 text-green-800 border border-green-300"
+          : "bg-red-100 text-red-800 border border-red-300"
+      }`}
+        >
+          {toast.msg}
+        </div>
       )}
     </main>
   );

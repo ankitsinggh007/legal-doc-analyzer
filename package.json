@@ -17,6 +17,7 @@
     ]
   },
   "dependencies": {
+    "html2pdf.js": "^0.12.1",
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^5.4.296",
     "prop-types": "^15.8.1",
