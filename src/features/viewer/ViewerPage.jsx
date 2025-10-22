@@ -1,8 +1,8 @@
+import { useState, useEffect, useMemo } from "react";
 import { useAnalyze } from "@/context/AnalyzeContext";
 import { useNavigate } from "react-router-dom";
 import { Container } from "@/components/layout/Container";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { useState, useEffect, useMemo } from "react";
 import { highlightClauses } from "@/utils/highlightClauses";
 import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
 import { exportPDF } from "@/utils/exportPDF";
@@ -17,12 +17,12 @@ export function ViewerPage() {
   } = useAnalyze();
   const [selectedClause, setSelectedClause] = useState(null);
   const [toast, setToast] = useState(null);
-
-  const navigate = useNavigate();
-
   const [activeTypes, setActiveTypes] = useState(
     new Set(["Termination", "Penalty", "Confidentiality"])
   );
+  const navigate = useNavigate();
+
+  // 🧭 Toast timeout
   useEffect(() => {
     if (toast) {
       const id = setTimeout(() => setToast(null), 3000);
@@ -30,14 +30,15 @@ export function ViewerPage() {
     }
   }, [toast]);
 
-  // Navigation guard
+  // 🧭 Navigation guard
   useEffect(() => {
     // 🚫 Don't run until hydration is complete
     if (isHydrated && !parsedText) navigate("/analyze");
   }, [isHydrated, parsedText, navigate]);
   // Reset selection on re-upload
   useEffect(() => setSelectedClause(null), [parsedText]);
-  // Manage highlight glow & scroll
+
+  // ✨ Highlight + scroll management
   useEffect(() => {
     document
       .querySelectorAll(".highlight-active")
@@ -215,7 +216,7 @@ export function ViewerPage() {
       )}
       {toast && (
         <div
-          className={`fixed bottom-4 right-6 px-4 py-2 rounded-md shadow-md text-sm font-medium transition-all duration-300
+          className={`fixed bottom-4 right-6 px-4 z-[9999] py-2 rounded-md shadow-lg text-sm font-medium transition-all duration-300
       ${
         toast.type === "success"
           ? "bg-green-100 text-green-800 border border-green-300"

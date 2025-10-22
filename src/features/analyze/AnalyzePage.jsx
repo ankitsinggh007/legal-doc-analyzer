@@ -10,7 +10,6 @@ import DropzoneCard from "./components/DropzoneCard";
 import LoadingCard from "./components/LoadingCard";
 import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
-import FooterHint from "./components/FooterHint";
 import parseDocument from "../../utils/parseDocument";
 
 export function AnalyzePage() {
@@ -97,9 +96,13 @@ export function AnalyzePage() {
   };
 
   return (
-    <main className="min-h-[80vh] flex flex-col justify-center px-4 sm:px-6 md:px-8">
+    <main
+      className="min-h-[85vh] flex flex-col justify-center px-4 sm:px-6 md:px-8
+    
+    "
+    >
       <Container>
-        <div className="flex flex-col items-center gap-8 text-center">
+        <section className="flex flex-col items-center gap-8 text-center">
           <UploadHeader />
           {status === "idle" && (
             <DropzoneCard onFileAccepted={handleFileAccepted} />
@@ -111,8 +114,7 @@ export function AnalyzePage() {
           {status === "error" && (
             <ErrorCard message={errorMsg} onRetry={reset} />
           )}
-          <FooterHint />
-        </div>
+        </section>
       </Container>
     </main>
   );
