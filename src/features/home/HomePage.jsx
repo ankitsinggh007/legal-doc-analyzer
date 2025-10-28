@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
-export function HomePage() {
+export default function HomePage() {
   const navigate = useNavigate();
 
   return (

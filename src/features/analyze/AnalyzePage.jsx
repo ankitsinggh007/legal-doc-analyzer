@@ -12,7 +12,7 @@ import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
 import parseDocument from "../../utils/parseDocument";
 
-export function AnalyzePage() {
+export default function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -59,7 +59,8 @@ export function AnalyzePage() {
         setSummary(cached.summary);
       } else {
         // 🔹 Step 3: Choose AI analyzer based on env
-        const useRealAI = import.meta.env.MODE === "production";
+        // const useRealAI = import.meta.env.MODE === "production";
+        const useRealAI = false;
         const analysis = useRealAI
           ? await analyzeAI(text)
           : await analyzeMock(text);

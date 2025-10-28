@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import PropTypes from "prop-types";
 
-export function RiskSummaryPanel({ summary }) {
+export const RiskSummaryPanel = memo(function RiskSummaryPanel({ summary }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!summary) return null;
@@ -26,7 +26,7 @@ export function RiskSummaryPanel({ summary }) {
       )}
     </div>
   );
-}
+});
 
 RiskSummaryPanel.propTypes = {
   summary: PropTypes.string,
