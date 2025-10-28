@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
-export function NotFoundPage() {
+export default function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
