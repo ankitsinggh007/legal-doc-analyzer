@@ -12,8 +12,16 @@ export const RiskSummaryPanel = memo(function RiskSummaryPanel({ summary }) {
       onClick={() => setExpanded(!expanded)}
       role="region"
       aria-expanded={expanded}
+      aria-labelledby="risk-summary-heading"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && setExpanded(!expanded)}
     >
-      <p className="font-semibold mb-1 text-primary-600">Risk Summary</p>
+      <p
+        id="risk-summary-heading"
+        className="font-semibold mb-1 text-primary-600"
+      >
+        Risk Summary
+      </p>
       <div
         className={`transition-all duration-300 ease-in-out ${
           expanded ? "max-h-[250px] overflow-y-auto pr-1" : "line-clamp-3"

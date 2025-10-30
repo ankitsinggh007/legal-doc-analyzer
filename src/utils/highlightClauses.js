@@ -33,7 +33,8 @@ export function highlightClauses(text, clauses, activeTypes) {
     fragments.push(
       `<mark class="highlight-${type.toLowerCase()}" 
        tabindex="0" 
-       aria-label="${type} clause"
+       role="button"
+       aria-label=" View ${type} clause details"
        data-index="${index}">
        ${safeText.slice(start, end)}
      </mark>`

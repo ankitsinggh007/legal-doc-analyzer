@@ -151,8 +151,12 @@ export default function ViewerPage() {
           </div>
         </Container>
       )}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {toast && <span>{toast.msg}</span>}
+      </div>
       {toast && (
         <div
+          role="status"
           className={`fixed bottom-4 right-6 px-4 z-[9999] py-2 rounded-md shadow-lg text-sm font-medium transition-all duration-300
       ${
         toast.type === "success"

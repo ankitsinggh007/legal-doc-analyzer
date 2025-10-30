@@ -1,11 +1,15 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 export default function DropzoneCard({ onFileAccepted }) {
   const inputRef = useRef();
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState("");
   const [file, setFile] = useState(null);
+  const dropzoneRef = useRef();
 
+  useEffect(() => {
+    dropzoneRef?.current?.focus();
+  }, []);
   const handleFiles = (files) => {
     const selected = files[0];
     if (!selected) return;
@@ -32,6 +36,7 @@ export default function DropzoneCard({ onFileAccepted }) {
 
   return (
     <div
+      ref={dropzoneRef}
       role="button"
       tabIndex={0}
       aria-label="Upload file"

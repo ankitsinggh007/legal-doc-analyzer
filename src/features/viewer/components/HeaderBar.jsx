@@ -21,6 +21,7 @@ const HeaderBar = memo(function HeaderBar({
           {fileName || "Untitled Document"}
         </h1>
         <button
+          aria-label="Re-upload a new file"
           onClick={() => {
             resetAnalysis();
             navigate("/analyze");
@@ -29,13 +30,14 @@ const HeaderBar = memo(function HeaderBar({
         >
           Re-upload
         </button>
-        <button
+        {/* <button
           onClick={resetAnalysis}
           className="text-red-600 hover:underline text-sm ml-3"
         >
           Clear All Data
-        </button>
+        </button> */}
         <button
+          aria-label="Export analysis as PDF"
           onClick={() =>
             exportPDF({ fileName, clauses, summary, parsedText, setToast })
           }
