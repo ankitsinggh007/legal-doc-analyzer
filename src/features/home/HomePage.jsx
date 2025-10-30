@@ -1,12 +1,17 @@
 // src/features/home/HomePage.jsx
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { useEffect, useRef } from "react";
 
 export default function HomePage() {
   const navigate = useNavigate();
-
+  const getBtn = useRef(null);
+  useEffect(() => {
+    getBtn.current?.focus();
+  }, []);
   return (
     <main
+      id="main"
       className="min-h-screen flex flex-col items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors"
       aria-label="Landing Page"
     >
@@ -26,6 +31,7 @@ export default function HomePage() {
           summaries — all powered by AI.
         </p>
         <button
+          ref={getBtn}
           onClick={() => navigate("/analyze")}
           className="px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-md text-lg font-medium transition-all shadow-md hover:shadow-lg"
         >
@@ -34,28 +40,44 @@ export default function HomePage() {
       </section>
 
       {/* 🔹 Feature Row */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center px-8 py-16 max-w-4xl">
-        <div className="p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="text-3xl mb-2">🧠</div>
-          <h3 className="font-semibold text-lg mb-1">AI Clause Detection</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Automatically identify and highlight key clauses.
-          </p>
-        </div>
-        <div className="p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="text-3xl mb-2">⚖️</div>
-          <h3 className="font-semibold text-lg mb-1">Risk Summary</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Instantly assess potential risks and obligations.
-          </p>
-        </div>
-        <div className="p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="text-3xl mb-2">📄</div>
-          <h3 className="font-semibold text-lg mb-1">Export PDF</h3>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Save professional, color-coded reports instantly.
-          </p>
-        </div>
+      <section
+        aria-labelledby="features-heading"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center px-8 py-16 max-w-4xl"
+      >
+        <h2 id="features-heading" className="sr-only">
+          Key Features
+        </h2>
+        {[
+          {
+            icon: "🧠",
+            title: "AI Clause Detection",
+            desc: "Automatically identify and highlight key clauses.",
+          },
+          {
+            icon: "⚖️",
+            title: "Risk Summary",
+            desc: "Instantly assess potential risks and obligations.",
+          },
+          {
+            icon: "📄",
+            title: "Export PDF",
+            desc: "Save professional, color-coded reports instantly.",
+          },
+        ].map((f) => (
+          <article
+            key={f.title}
+            className="p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 
+                         bg-white dark:bg-slate-800"
+          >
+            <div className="text-3xl mb-2" aria-hidden="true">
+              {f.icon}
+            </div>
+            <h3 className="font-semibold text-lg mb-1">{f.title}</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {f.desc}
+            </p>
+          </article>
+        ))}
       </section>
 
       {/* 🔹 Footer */}

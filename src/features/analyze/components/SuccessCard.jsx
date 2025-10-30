@@ -7,8 +7,14 @@ export default function SuccessCard({ result, onReset }) {
   }, []);
 
   return (
-    <div className="w-full max-w-md rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 py-10 text-center shadow-md">
-      <p className="text-3xl">✅</p>
+    <div
+      role="status"
+      aria-live="polite"
+      className="w-full max-w-md rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 py-10 text-center shadow-md"
+    >
+      <p className="text-3xl" aria-hidden="true">
+        ✅
+      </p>
       <h3 className="text-emerald-600 font-semibold mt-2">
         Analysis Complete!
       </h3>
