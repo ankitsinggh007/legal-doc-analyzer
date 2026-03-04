@@ -1,61 +1,33 @@
-export async function analyzeMock(text) {
-  console.log("🧠 Mock AI analyzing text...", text);
+export async function analyzeMock(text, segments = []) {
   // Simulate processing delay
   await new Promise((res) => setTimeout(res, 1200));
+  const ids = Array.isArray(segments) ? segments.map((s) => s.id) : [];
   // Return mock analysis results
   return {
     clauses: [
       {
         type: "Termination",
-        start: 520,
-        end: 910,
+        risk: "medium",
         explanation:
           "Specifies that the contract and all related obligations between the parties are terminated and fully released.",
+        citations: ids.slice(0, 2),
       },
       {
-        type: "Penalty",
-        start: 920,
-        end: 1180,
+        type: "Liability",
+        risk: "high",
         explanation:
-          "Clarifies that neither party admits liability or wrongdoing, indicating that no penalty or compensation is owed.",
+          "Limits or excludes damages under certain conditions, which may shift risk.",
+        citations: ids.slice(2, 4),
       },
       {
         type: "Confidentiality",
-        start: 2230,
-        end: 2450,
+        risk: "low",
         explanation:
           "States that information or documents exchanged between the parties must remain confidential and not be disclosed to others.",
-      },
-      {
-        type: "Termination",
-        start: 1450,
-        end: 1750,
-        explanation:
-          "Mentions that either party may provide further documents to confirm the effective termination of the contract.",
-      },
-      {
-        type: "Penalty",
-        start: 2600,
-        end: 2830,
-        explanation:
-          "Outlines possible financial consequences if any clause of this agreement is violated or disregarded.",
-      },
-      {
-        type: "Confidentiality",
-        start: 3100,
-        end: 3400,
-        explanation:
-          "Emphasizes that all notices and communications are to be handled privately and securely.",
-      },
-      {
-        type: "Termination",
-        start: 3550,
-        end: 3900,
-        explanation:
-          "Declares that this document serves as the entire and final agreement between both parties, confirming closure of previous arrangements.",
+        citations: ids.slice(4, 6),
       },
     ],
     summary:
-      "Detected 7 clauses — 3 Termination, 2 Penalty, and 2 Confidentiality — covering contract closure, non-liability, and confidentiality obligations.",
+      "Detected key clauses covering termination, liability limits, and confidentiality obligations.",
   };
 }

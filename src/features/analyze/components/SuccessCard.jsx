@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { useEffect, useRef } from "react";
-export default function SuccessCard({ result, onReset }) {
+export default function SuccessCard({ result, onReset, onView }) {
   const viewRef = useRef();
   useEffect(() => {
     viewRef.current?.focus();
@@ -22,14 +22,11 @@ export default function SuccessCard({ result, onReset }) {
         {result.filename} ({result.size} MB)
       </p>
 
-      <div
-        className="w-full max-w-md rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 py-10 text-center shadow-md
-"
-      >
-        <button // eslint: alert:'readonly'
+      <div className="mt-6 flex flex-col items-center gap-3">
+        <button
           ref={viewRef}
           autoFocus
-          onClick={() => window.alert("Coming soon: Insights view")}
+          onClick={onView}
           className="bg-indigo-600 text-white px-4 py-2 rounded-md
                    hover:bg-indigo-700 focus-visible:ring-2
                    focus-visible:ring-primary-500"
@@ -50,4 +47,5 @@ export default function SuccessCard({ result, onReset }) {
 SuccessCard.propTypes = {
   result: PropTypes.object.isRequired,
   onReset: PropTypes.func.isRequired,
+  onView: PropTypes.func.isRequired,
 };
