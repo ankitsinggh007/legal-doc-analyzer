@@ -1,20 +1,22 @@
 import { memo } from "react";
+import { getClauseColor } from "@/utils/clauseStyles";
 
-const ColorLegend = memo(function ColorLegend() {
+const ColorLegend = memo(function ColorLegend({ types }) {
+  if (!types?.length) return null;
   return (
     <div className="flex flex-col gap-1 mb-3 text-sm">
-      <div className="flex items-center gap-2">
-        <span className="w-3 h-3 rounded-sm bg-red-200 dark:bg-red-900" />
-        Termination
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-3 h-3 rounded-sm bg-amber-200 dark:bg-amber-900" />
-        Penalty
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-3 h-3 rounded-sm bg-blue-200 dark:bg-blue-900" />
-        Confidentiality
-      </div>
+      {types.map((type) => {
+        const colors = getClauseColor(type);
+        return (
+          <div className="flex items-center gap-2" key={type}>
+            <span
+              className="w-3 h-3 rounded-sm"
+              style={{ backgroundColor: colors.bg }}
+            />
+            {type}
+          </div>
+        );
+      })}
     </div>
   );
 });
