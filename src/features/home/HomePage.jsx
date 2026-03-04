@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useEffect, useRef } from "react";
+import Disclaimer from "@/components/Disclaimer";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ export default function HomePage() {
         >
           Get Started
         </button>
+        <Disclaimer className="mt-4" />
       </section>
 
       {/* 🔹 Feature Row */}

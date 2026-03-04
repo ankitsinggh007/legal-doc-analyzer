@@ -9,6 +9,7 @@ const HeaderBar = memo(function HeaderBar({
   clauses,
   summary,
   parsedText,
+  segments,
   setToast,
 }) {
   return (
@@ -39,7 +40,14 @@ const HeaderBar = memo(function HeaderBar({
         <button
           aria-label="Export analysis as PDF"
           onClick={() =>
-            exportPDF({ fileName, clauses, summary, parsedText, setToast })
+            exportPDF({
+              fileName,
+              clauses,
+              summary,
+              parsedText,
+              segments,
+              setToast,
+            })
           }
           className="text-green-600 hover:underline text-sm ml-3"
         >
