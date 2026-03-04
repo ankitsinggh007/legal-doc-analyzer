@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 
-export default function ErrorCard({ message, onRetry }) {
+export default function ErrorCard({ message, onRetry, onReset }) {
   return (
     <div
       role="alert"
@@ -19,6 +19,14 @@ export default function ErrorCard({ message, onRetry }) {
       >
         Retry
       </button>
+      {onReset && (
+        <button
+          onClick={onReset}
+          className="block mx-auto mt-3 text-rose-700 hover:underline text-sm"
+        >
+          Upload Again
+        </button>
+      )}
     </div>
   );
 }
@@ -26,4 +34,5 @@ export default function ErrorCard({ message, onRetry }) {
 ErrorCard.propTypes = {
   message: PropTypes.string.isRequired,
   onRetry: PropTypes.func.isRequired,
+  onReset: PropTypes.func,
 };

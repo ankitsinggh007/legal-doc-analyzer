@@ -1,26 +1,94 @@
-# 📑 Legal Document Analyzer
+# Legal Document Analyzer
 
-A frontend web app that helps users **upload, analyze, and understand legal contracts** by highlighting key clauses (termination, penalties, confidentiality, indemnification) and generating plain-language explanations.
+AI-assisted contract analyzer that highlights key clauses, assigns risk levels, and links each clause to cited lines in the document.
 
----
+Disclaimer: AI-assisted, may be inaccurate, not legal advice.
 
-## 🚀 Tech Stack
-- **React + Vite** – fast frontend setup
-- **TailwindCSS** – styling & responsive design
-- **Redux Toolkit** – state management
-- **ESLint + Prettier + Husky** – production-grade code quality
+**Features**
+- Upload PDF, DOCX, or TXT (client-side parsing).
+- Clause taxonomy with filters (Termination, Indemnity, Liability, Confidentiality, etc.).
+- Risk score per clause (low, medium, high).
+- Line-based citations and in-document highlights.
+- Export annotated PDF.
+- Clear loading, empty, error, and success states.
 
----
+**Tech Stack**
+- React + Vite
+- Tailwind CSS
+- pdfjs-dist + mammoth for parsing
+- html2pdf.js for export
+- Serverless API (Vercel-style function in `api/analyze.js`)
 
-## 🔧 Setup
+**Local Setup**
+1. Install dependencies.
+
 ```bash
-# clone repo
-git clone https://github.com/ankitsinggh007/legal-doc-analyzer.git
-
-cd legal-doc-analyzer
-
-# install dependencies
 npm install
+```
 
-# start dev server
+2. Create `.env` from the example.
+
+```bash
+cp .env.example .env
+```
+
+3. Set environment variables.
+
+Frontend:
+- `VITE_TURNSTILE_SITE_KEY`
+- `VITE_API_BASE_URL` (optional, defaults to same origin)
+- `VITE_USE_MOCK_ANALYZER` (optional, set `true` for local mock data)
+
+Backend:
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (default: `gpt-4o-mini`)
+- `TURNSTILE_SECRET_KEY`
+
+**Run Locally**
+Option A (recommended): run the serverless API with Vercel dev and point the frontend to it.
+1. Start the API server.
+
+```bash
+npx vercel dev --listen 3000
+```
+
+2. In another terminal, run the frontend.
+
+```bash
 npm run dev
+```
+
+3. Set `VITE_API_BASE_URL=http://localhost:3000` in `.env`.
+
+Option B: deploy the API and set `VITE_API_BASE_URL` to your deployed domain.
+
+**API Contract**
+The backend returns stable JSON:
+
+```json
+{
+  "clauses": [
+    {
+      "type": "Termination",
+      "risk": "medium",
+      "explanation": "...",
+      "citations": [12, 13]
+    }
+  ],
+  "summary": "..."
+}
+```
+
+**Security Notes**
+- The OpenAI API key is never exposed to the client.
+- Turnstile verification is enforced in the backend.
+- Secrets must live in backend environment variables only.
+
+**Deployment (Vercel)**
+1. Import the repo in Vercel.
+2. Add frontend env vars for your deployed app.
+3. Add backend env vars (OpenAI key + Turnstile secret).
+4. Deploy. The frontend will call `/api/analyze` by default, or your `VITE_API_BASE_URL` if set.
+
+**Disclaimer**
+AI-assisted, may be inaccurate, not legal advice.

@@ -1,7 +1,7 @@
 import { analyzeMock } from "@/api/analyzeMock";
-import { analyzeAI } from "@/api/analyzeAI";
+import { analyzeDocument } from "@/api/analyzeDocument";
 import { getCacheKey, getCachedResult, setCachedResult } from "@/utils/cache";
-import { useEffect, useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAnalyze } from "../../context/AnalyzeContext";
 import { Container } from "../../components/layout/Container";
@@ -11,79 +11,124 @@ import LoadingCard from "./components/LoadingCard";
 import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
 import parseDocument from "../../utils/parseDocument";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
+import Disclaimer from "@/components/Disclaimer";
+import { segmentText } from "@/utils/segmentText";
 
 export default function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileError, setTurnstileError] = useState("");
+  const [lastFile, setLastFile] = useState(null);
+  const turnstileRef = useRef(null);
   const navigate = useNavigate();
   const {
     setUploadedFile,
     setParsedText,
+    setSegments,
     setWarning,
     setClauses,
     setSummary,
     resetAnalysis,
+    warning,
+    parsedText,
+    segments,
   } = useAnalyze();
 
-  useEffect(() => {
-    if (status === "success") {
-      const id = setTimeout(() => navigate("/viewer"), 600);
-      return () => clearTimeout(id);
+  const useMock = import.meta.env.VITE_USE_MOCK_ANALYZER === "true";
+
+  const runAnalysis = async ({ file, text, segments: nextSegments }) => {
+    const cacheKey = getCacheKey(file);
+    const cached = getCachedResult(cacheKey);
+
+    if (cached && Array.isArray(cached.clauses)) {
+      setClauses(cached.clauses);
+      setSummary(cached.summary || "");
+      setSegments(cached.segments || nextSegments || []);
+      return;
     }
-  }, [status, navigate]);
+
+    if (!useMock && !turnstileToken) {
+      throw new Error("Please complete the Turnstile verification.");
+    }
+
+    const analysis = useMock
+      ? await analyzeMock(text, nextSegments)
+      : await analyzeDocument({
+          text,
+          segments: nextSegments,
+          turnstileToken,
+        });
+
+    setClauses(analysis.clauses || []);
+    setSummary(analysis.summary || "");
+    setCachedResult(cacheKey, {
+      clauses: analysis.clauses || [],
+      summary: analysis.summary || "",
+      segments: nextSegments || [],
+    });
+  };
 
   const handleFileAccepted = async (file) => {
-    console.log("✅ File ready:", file.name, file.type);
     setStatus("loading");
+    setErrorMsg("");
+    setTurnstileError("");
+    setLastFile(file);
 
     try {
-      // 🔹 Step 1: Parse document
       const { text, warning } = await parseDocument(file);
-      console.log("📄 Parsed text length:", text.length);
-
-      if (warning) console.warn(warning);
+      const nextSegments = segmentText(text);
 
       setUploadedFile(file);
       setParsedText(text);
+      setSegments(nextSegments);
       setWarning(warning);
-      console.log("✅ Env key loaded:", !!import.meta.env.VITE_OPENAI_API_KEY);
 
-      // 🔹 Step 2: Check cache
-      const cacheKey = getCacheKey(file);
-      const cached = getCachedResult(cacheKey);
+      await runAnalysis({ file, text, segments: nextSegments });
 
-      if (cached) {
-        console.log(`⚡ Using cached analysis for ${file.name}`);
-        setClauses(cached.clauses);
-        setSummary(cached.summary);
-      } else {
-        // 🔹 Step 3: Choose AI analyzer based on env
-        // const useRealAI = import.meta.env.MODE === "production";
-        const useRealAI = false;
-        const analysis = useRealAI
-          ? await analyzeAI(text)
-          : await analyzeMock(text);
-
-        setClauses(analysis.clauses);
-        setSummary(analysis.summary);
-        setCachedResult(cacheKey, analysis);
-
-        console.log("🧠 AI result:", analysis);
-
-        setClauses(analysis.clauses);
-        setSummary(analysis.summary);
-        setCachedResult(cacheKey, result);
-      }
-
-      // 🔹 Step 4: Update UI
       setResult({
         filename: file.name,
         size: (file.size / 1024 / 1024).toFixed(2),
       });
       setStatus("success");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
     } catch (err) {
-      console.error("❌ Parser error:", err.message);
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+      setErrorMsg(err.message || "Unexpected parsing error.");
+      setStatus("error");
+    }
+  };
+
+  const retry = async () => {
+    if (!lastFile || !parsedText) {
+      reset();
+      return;
+    }
+    setStatus("loading");
+    setErrorMsg("");
+    try {
+      const nextSegments = segments?.length
+        ? segments
+        : segmentText(parsedText);
+      await runAnalysis({
+        file: lastFile,
+        text: parsedText,
+        segments: nextSegments,
+      });
+      setResult({
+        filename: lastFile.name,
+        size: (lastFile.size / 1024 / 1024).toFixed(2),
+      });
+      setStatus("success");
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
+    } catch (err) {
+      turnstileRef.current?.reset();
+      setTurnstileToken("");
       setErrorMsg(err.message || "Unexpected parsing error.");
       setStatus("error");
     }
@@ -94,6 +139,8 @@ export default function AnalyzePage() {
     setStatus("idle");
     setResult(null);
     setErrorMsg("");
+    setTurnstileError("");
+    setTurnstileToken("");
   };
 
   return (
@@ -101,15 +148,45 @@ export default function AnalyzePage() {
       <Container>
         <section className="flex flex-col items-center gap-8 text-center">
           <UploadHeader />
+          <Disclaimer className="max-w-lg" />
+          {!useMock && (
+            <div className="w-full max-w-md">
+              <TurnstileWidget
+                ref={turnstileRef}
+                onVerify={(token) => {
+                  setTurnstileToken(token);
+                  setTurnstileError("");
+                }}
+                onExpire={() => setTurnstileToken("")}
+                onError={() =>
+                  setTurnstileError("Turnstile verification failed. Try again.")
+                }
+              />
+              {turnstileError && (
+                <p className="text-rose-600 text-sm mt-2" role="alert">
+                  {turnstileError}
+                </p>
+              )}
+            </div>
+          )}
           {status === "idle" && (
             <DropzoneCard onFileAccepted={handleFileAccepted} />
           )}
+          {warning && status !== "error" && (
+            <p className="text-amber-600 text-sm" role="status">
+              {warning}
+            </p>
+          )}
           {status === "loading" && <LoadingCard />}
           {status === "success" && (
-            <SuccessCard result={result} onReset={reset} />
+            <SuccessCard
+              result={result}
+              onReset={reset}
+              onView={() => navigate("/viewer")}
+            />
           )}
           {status === "error" && (
-            <ErrorCard message={errorMsg} onRetry={reset} />
+            <ErrorCard message={errorMsg} onRetry={retry} onReset={reset} />
           )}
         </section>
       </Container>

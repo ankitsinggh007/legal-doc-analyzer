@@ -5,7 +5,7 @@ export default function UploadHeader() {
         Upload your contract
       </h1>
       <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-        Supports PDF, DOCX, and TXT up to 10 MB
+        Supports PDF, DOCX, and TXT up to 2 MB
       </p>
     </header>
   );
