@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 .vite
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 
@@ -24,3 +27,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
