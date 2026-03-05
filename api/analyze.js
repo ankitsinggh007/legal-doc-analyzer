@@ -49,7 +49,8 @@ export default async function handler(req, res) {
 
   const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
   const userAgent = req.headers["user-agent"] || "unknown";
-  const identity = `${clientIp || "local"}:${userAgent}`;
+  const prefix = process.env.RATE_LIMIT_PREFIX || "legal-doc-analyzer";
+  const identity = `${prefix}:${clientIp || "local"}:${userAgent}`;
   let rate;
   try {
     rate = await checkRateLimit(identity);

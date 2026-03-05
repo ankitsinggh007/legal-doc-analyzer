@@ -45,6 +45,7 @@ Backend:
 - `TURNSTILE_SECRET_KEY`
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
+- `RATE_LIMIT_PREFIX` (optional, defaults to `legal-doc-analyzer`)
 
 **Run Locally**
 Option A (recommended): run the serverless API with Vercel dev and point the frontend to it.
