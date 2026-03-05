@@ -43,6 +43,8 @@ Backend:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (default: `gpt-4o-mini`)
 - `TURNSTILE_SECRET_KEY`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 
 **Run Locally**
 Option A (recommended): run the serverless API with Vercel dev and point the frontend to it.
@@ -82,6 +84,7 @@ The backend returns stable JSON:
 **Security Notes**
 - The OpenAI API key is never exposed to the client.
 - Turnstile verification is enforced in the backend.
+- Rate limit: 5 requests per 30 minutes per client (Upstash Redis).
 - Secrets must live in backend environment variables only.
 
 **Deployment (Vercel)**
