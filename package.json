@@ -17,6 +17,8 @@
     ]
   },
   "dependencies": {
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.36.3",
     "html2pdf.js": "^0.12.1",
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^5.4.296",

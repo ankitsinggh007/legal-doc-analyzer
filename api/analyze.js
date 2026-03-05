@@ -1,100 +1,10 @@
-/* global process, URLSearchParams */
+/* global process */
 
-const MAX_CHARS = 6000;
-
-function json(res, status, body) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(body));
-}
-
-async function readJson(req) {
-  if (req.body && typeof req.body === "object") return req.body;
-  let data = "";
-  for await (const chunk of req) data += chunk;
-  if (!data) return null;
-  try {
-    return JSON.parse(data);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeRisk(value) {
-  const v = typeof value === "string" ? value.toLowerCase().trim() : "";
-  if (v === "low" || v === "medium" || v === "high") return v;
-  if (v === "med" || v === "mid") return "medium";
-  return "medium";
-}
-
-function normalizeCitations(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  for (const item of value) {
-    if (typeof item === "number" && Number.isFinite(item)) out.push(item);
-    if (typeof item === "string" && item.trim() !== "") {
-      const n = Number(item);
-      if (Number.isFinite(n)) out.push(n);
-    }
-  }
-  return Array.from(new Set(out));
-}
-
-function normalizeOutput(rawText) {
-  if (!rawText || typeof rawText !== "string") {
-    return { clauses: [], summary: "" };
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(rawText);
-  } catch {
-    return { clauses: [], summary: rawText.slice(0, 1200) };
-  }
-
-  const clauses = Array.isArray(parsed?.clauses)
-    ? parsed.clauses
-        .map((c) => {
-          if (!c || typeof c !== "object") return null;
-          const type = typeof c.type === "string" ? c.type.trim() : "";
-          if (!type) return null;
-          const explanation =
-            typeof c.explanation === "string" ? c.explanation.trim() : "";
-          return {
-            type,
-            risk: normalizeRisk(c.risk),
-            explanation,
-            citations: normalizeCitations(c.citations),
-          };
-        })
-        .filter(Boolean)
-    : [];
-
-  const summary =
-    typeof parsed?.summary === "string" ? parsed.summary.trim() : "";
-
-  return { clauses, summary };
-}
-
-async function verifyTurnstile(token, ip) {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) {
-    throw new Error("Server misconfigured: TURNSTILE_SECRET_KEY is missing.");
-  }
-
-  const body = new URLSearchParams({
-    secret,
-    response: token,
-  });
-  if (ip) body.append("remoteip", ip);
-
-  const resp = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    { method: "POST", body }
-  );
-  const data = await resp.json().catch(() => ({}));
-  return Boolean(data?.success);
-}
+import { MAX_CHARS, RATE_LIMIT_MAX } from "../server/constants.js";
+import { json, readJson } from "../server/http.js";
+import { normalizeOutput } from "../server/normalize.js";
+import { checkRateLimit } from "../server/rateLimit.js";
+import { verifyTurnstile } from "../server/turnstile.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -138,6 +48,32 @@ export default async function handler(req, res) {
   }
 
   const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
+  const userAgent = req.headers["user-agent"] || "unknown";
+  const identity = `${clientIp || "local"}:${userAgent}`;
+  let rate;
+  try {
+    rate = await checkRateLimit(identity);
+  } catch (err) {
+    return json(res, 500, { error: err.message || "Rate limit failure." });
+  }
+  const resetSeconds =
+    typeof rate.reset === "number" && rate.reset > 1e12
+      ? Math.floor(rate.reset / 1000)
+      : rate.reset;
+  res.setHeader("X-RateLimit-Limit", rate.limit ?? RATE_LIMIT_MAX);
+  res.setHeader("X-RateLimit-Remaining", rate.remaining ?? 0);
+  res.setHeader("X-RateLimit-Reset", resetSeconds ?? 0);
+  if (!rate.success) {
+    const retryAfter =
+      typeof resetSeconds === "number"
+        ? Math.max(0, resetSeconds - Math.floor(Date.now() / 1000))
+        : 60;
+    res.setHeader("Retry-After", retryAfter);
+    return json(res, 429, {
+      error: "Rate limit exceeded. Please try again later.",
+    });
+  }
+
   const turnstileOk = await verifyTurnstile(turnstileToken, clientIp);
   if (!turnstileOk) {
     return json(res, 403, { error: "Turnstile verification failed." });
