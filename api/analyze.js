@@ -90,19 +90,10 @@ export default async function handler(req, res) {
     ? `Contract text is provided with paragraph IDs in brackets like [12]. Use those IDs in citations.`
     : `Contract text has no paragraph IDs. Return citations as an empty array for each clause.`;
 
-  const requestBody = {
-    model,
-    temperature: 0,
-    max_tokens: 700,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a legal document analyzer. Return JSON only. Keep outputs concise and factual.",
-      },
-      {
-        role: "user",
-        content: `${prompt}
+  const systemMessage =
+    "You are a legal document analyzer. Return JSON only. Keep outputs concise and factual.";
+
+  const baseUserMessage = `${prompt}
 Return JSON in exactly this shape:
 {
   "clauses": [
@@ -116,12 +107,42 @@ Return JSON in exactly this shape:
   "summary": "..."
 }
 Contract text:
-"""${inputText}"""`,
-      },
-    ],
-  };
+"""${inputText}"""`;
 
-  try {
+  const retryUserMessage = `${prompt}
+Return JSON in exactly this shape:
+{
+  "clauses": [
+    {
+      "type": "Termination",
+      "risk": "low|medium|high",
+      "explanation": "...",
+      "citations": [12, 13]
+    }
+  ],
+  "summary": "..."
+}
+Limit to the 6 most important clauses. Keep explanations to 1 sentence.
+Contract text:
+"""${inputText}"""`;
+
+  const callOpenAI = async (userMessage) => {
+    const requestBody = {
+      model,
+      temperature: 0,
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "system",
+          content: systemMessage,
+        },
+        {
+          role: "user",
+          content: userMessage,
+        },
+      ],
+    };
+
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -132,12 +153,33 @@ Contract text:
     });
 
     const aiJson = await aiRes.json().catch(() => ({}));
+    return { aiRes, aiJson };
+  };
+
+  try {
+    let { aiRes, aiJson } = await callOpenAI(baseUserMessage);
     if (!aiRes.ok) {
       const msg = aiJson?.error?.message || "OpenAI request failed.";
       return json(res, 502, { error: msg });
     }
 
-    const raw = aiJson?.choices?.[0]?.message?.content?.trim();
+    let choice = aiJson?.choices?.[0];
+    if (choice?.finish_reason === "length") {
+      ({ aiRes, aiJson } = await callOpenAI(retryUserMessage));
+      if (!aiRes.ok) {
+        const msg = aiJson?.error?.message || "OpenAI request failed.";
+        return json(res, 502, { error: msg });
+      }
+      choice = aiJson?.choices?.[0];
+      if (choice?.finish_reason === "length") {
+        return json(res, 502, {
+          error:
+            "Model output was truncated. Please try again or upload a shorter document.",
+        });
+      }
+    }
+
+    const raw = choice?.message?.content?.trim();
     const normalized = normalizeOutput(raw || "");
     return json(res, 200, normalized);
   } catch (err) {
