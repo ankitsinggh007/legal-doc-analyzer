@@ -1,7 +1,7 @@
 import { analyzeMock } from "@/api/analyzeMock";
 import { analyzeDocument } from "@/api/analyzeDocument";
 import { getCacheKey, getCachedResult, setCachedResult } from "@/utils/cache";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAnalyze } from "../../context/AnalyzeContext";
 import { Container } from "../../components/layout/Container";
@@ -11,7 +11,6 @@ import LoadingCard from "./components/LoadingCard";
 import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
 import parseDocument from "../../utils/parseDocument";
-import { TurnstileWidget } from "@/components/TurnstileWidget";
 import Disclaimer from "@/components/Disclaimer";
 import { segmentText } from "@/utils/segmentText";
 
@@ -23,6 +22,7 @@ export default function AnalyzePage() {
   const [turnstileError, setTurnstileError] = useState("");
   const [lastFile, setLastFile] = useState(null);
   const turnstileRef = useRef(null);
+  const turnstileWidgetId = useRef(null);
   const navigate = useNavigate();
   const {
     setUploadedFile,
@@ -38,6 +38,43 @@ export default function AnalyzePage() {
   } = useAnalyze();
 
   const useMock = import.meta.env.VITE_USE_MOCK_ANALYZER === "true";
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  const requiresTurnstile = Boolean(turnstileSiteKey);
+  const showTurnstile =
+    !useMock && requiresTurnstile && (status === "idle" || status === "error");
+
+  useEffect(() => {
+    if (!requiresTurnstile) return;
+
+    if (!showTurnstile) {
+      if (turnstileWidgetId.current && window.turnstile?.remove) {
+        window.turnstile.remove(turnstileWidgetId.current);
+        turnstileWidgetId.current = null;
+      }
+      return;
+    }
+
+    if (!turnstileRef.current || !window.turnstile?.render) return;
+    if (turnstileWidgetId.current) return;
+
+    turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: turnstileSiteKey,
+      callback: (token) => {
+        setTurnstileToken(token);
+        setTurnstileError("");
+      },
+      "expired-callback": () => setTurnstileToken(""),
+      "error-callback": () =>
+        setTurnstileError("Turnstile verification failed. Try again."),
+    });
+
+    return () => {
+      if (turnstileWidgetId.current && window.turnstile?.remove) {
+        window.turnstile.remove(turnstileWidgetId.current);
+        turnstileWidgetId.current = null;
+      }
+    };
+  }, [requiresTurnstile, showTurnstile, turnstileSiteKey]);
 
   const runAnalysis = async ({ file, text, segments: nextSegments }) => {
     const cacheKey = getCacheKey(file);
@@ -93,10 +130,14 @@ export default function AnalyzePage() {
         size: (file.size / 1024 / 1024).toFixed(2),
       });
       setStatus("success");
-      turnstileRef.current?.reset();
+      if (turnstileWidgetId.current && window.turnstile?.reset) {
+        window.turnstile.reset(turnstileWidgetId.current);
+      }
       setTurnstileToken("");
     } catch (err) {
-      turnstileRef.current?.reset();
+      if (turnstileWidgetId.current && window.turnstile?.reset) {
+        window.turnstile.reset(turnstileWidgetId.current);
+      }
       setTurnstileToken("");
       setErrorMsg(err.message || "Unexpected parsing error.");
       setStatus("error");
@@ -124,10 +165,14 @@ export default function AnalyzePage() {
         size: (lastFile.size / 1024 / 1024).toFixed(2),
       });
       setStatus("success");
-      turnstileRef.current?.reset();
+      if (turnstileWidgetId.current && window.turnstile?.reset) {
+        window.turnstile.reset(turnstileWidgetId.current);
+      }
       setTurnstileToken("");
     } catch (err) {
-      turnstileRef.current?.reset();
+      if (turnstileWidgetId.current && window.turnstile?.reset) {
+        window.turnstile.reset(turnstileWidgetId.current);
+      }
       setTurnstileToken("");
       setErrorMsg(err.message || "Unexpected parsing error.");
       setStatus("error");
@@ -149,19 +194,9 @@ export default function AnalyzePage() {
         <section className="flex flex-col items-center gap-8 text-center">
           <UploadHeader />
           <Disclaimer className="max-w-lg" />
-          {!useMock && (
+          {showTurnstile && (
             <div className="w-full max-w-md">
-              <TurnstileWidget
-                ref={turnstileRef}
-                onVerify={(token) => {
-                  setTurnstileToken(token);
-                  setTurnstileError("");
-                }}
-                onExpire={() => setTurnstileToken("")}
-                onError={() =>
-                  setTurnstileError("Turnstile verification failed. Try again.")
-                }
-              />
+              <div ref={turnstileRef} />
               {turnstileError && (
                 <p className="text-rose-600 text-sm mt-2" role="alert">
                   {turnstileError}
