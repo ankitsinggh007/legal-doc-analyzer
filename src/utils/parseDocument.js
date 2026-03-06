@@ -1,3 +1,8 @@
+const MAX_DOC_CHARS = Number.parseInt(
+  import.meta.env.VITE_MAX_DOC_CHARS || "60000",
+  10
+);
+
 export default async function parseDocument(file) {
   if (!file || !file.type)
     throw new Error("Invalid file object. Please re-upload.");
@@ -53,9 +58,11 @@ async function parsePDF(file) {
     text = text.replace(/\n{2,}/g, "\n").trim();
 
     if (!text) throw new Error("This PDF seems image-based or empty.");
-    if (text.length > 6000) {
+    if (text.length > MAX_DOC_CHARS) {
       throw new Error(
-        "This document exceeds the 6,000-character processing limit."
+        `This document exceeds the ${MAX_DOC_CHARS.toLocaleString(
+          "en-US"
+        )}-character processing limit.`
       );
     }
     const warning = nonTextFound
@@ -87,9 +94,11 @@ async function parseDOCX(file) {
       .trim();
 
     if (!text) throw new Error("This DOCX file seems empty or unreadable.");
-    if (text.length > 6000) {
+    if (text.length > MAX_DOC_CHARS) {
       throw new Error(
-        "This document exceeds the 6,000-character processing limit."
+        `This document exceeds the ${MAX_DOC_CHARS.toLocaleString(
+          "en-US"
+        )}-character processing limit.`
       );
     }
     const nonTextFound = /<img/i.test(html);
@@ -114,9 +123,11 @@ function parseTXT(file) {
       reader.onload = () => {
         const text = reader.result.trim();
         if (!text) reject(new Error("Text file is empty."));
-        if (text.length > 6000) {
+        if (text.length > MAX_DOC_CHARS) {
           throw new Error(
-            "This document exceeds the 6,000-character processing limit."
+            `This document exceeds the ${MAX_DOC_CHARS.toLocaleString(
+              "en-US"
+            )}-character processing limit.`
           );
         } else resolve({ text, warning: null });
       };
