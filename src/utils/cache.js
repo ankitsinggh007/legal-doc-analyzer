@@ -1,7 +1,7 @@
 // Simple caching utility using localStorage
-// Generate a unique cache key based on file name and size
+// Generate a cache key from stable file metadata.
 export function getCacheKey(file) {
-  return `${file.name}_${file.size}`;
+  return `${file.name}_${file.size}_${file.lastModified || 0}`;
 }
 // Retrieve cached result by key
 export function getCachedResult(key) {
