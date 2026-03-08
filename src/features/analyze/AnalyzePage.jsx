@@ -13,6 +13,11 @@ import ErrorCard from "./components/ErrorCard"; //
 import parseDocument from "../../utils/parseDocument";
 import Disclaimer from "@/components/Disclaimer";
 import { segmentText } from "@/utils/segmentText";
+import {
+  createDocumentId,
+  createPreprocessResult,
+  PREPROCESS_QUALITY,
+} from "@/lib/document-processing/preprocessResult";
 
 export default function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
@@ -29,6 +34,7 @@ export default function AnalyzePage() {
     setParsedText,
     setSegments,
     setWarning,
+    setPreprocessResult,
     setClauses,
     setSummary,
     resetAnalysis,
@@ -117,11 +123,17 @@ export default function AnalyzePage() {
     try {
       const { text, warning } = await parseDocument(file);
       const nextSegments = segmentText(text);
+      const nextPreprocessResult = createPreprocessResult({
+        documentId: createDocumentId(),
+        quality: warning ? PREPROCESS_QUALITY.WARNING : PREPROCESS_QUALITY.GOOD,
+        qualityReason: warning || "",
+      });
 
       setUploadedFile(file);
       setParsedText(text);
       setSegments(nextSegments);
       setWarning(warning);
+      setPreprocessResult(nextPreprocessResult);
 
       await runAnalysis({ file, text, segments: nextSegments });
 
