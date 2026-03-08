@@ -10,6 +10,7 @@ import DropzoneCard from "./components/DropzoneCard";
 import LoadingCard from "./components/LoadingCard";
 import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
+import PreprocessPreviewCard from "./components/PreprocessPreviewCard";
 import parseDocument from "../../utils/parseDocument";
 import Disclaimer from "@/components/Disclaimer";
 import { segmentText } from "@/utils/segmentText";
@@ -27,9 +28,10 @@ function mergeWarnings(...messages) {
 }
 
 export default function AnalyzePage() {
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
+  const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [errorPhase, setErrorPhase] = useState(null);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileError, setTurnstileError] = useState("");
   const [lastFile, setLastFile] = useState(null);
@@ -37,6 +39,7 @@ export default function AnalyzePage() {
   const turnstileWidgetId = useRef(null);
   const navigate = useNavigate();
   const {
+    uploadedFile,
     setUploadedFile,
     setParsedText,
     setSegments,
@@ -48,13 +51,28 @@ export default function AnalyzePage() {
     warning,
     parsedText,
     segments,
+    preprocessResult,
+    clauses,
   } = useAnalyze();
 
   const useMock = import.meta.env.VITE_USE_MOCK_ANALYZER === "true";
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
   const requiresTurnstile = Boolean(turnstileSiteKey);
   const showTurnstile =
-    !useMock && requiresTurnstile && (status === "idle" || status === "error");
+    !useMock &&
+    requiresTurnstile &&
+    (status === "ready" || (status === "error" && errorPhase === "analysis"));
+
+  useEffect(() => {
+    if (!preprocessResult) return;
+    if (clauses?.length) {
+      setStatus("success");
+      return;
+    }
+    if (parsedText) {
+      setStatus("ready");
+    }
+  }, [clauses, parsedText, preprocessResult]);
 
   useEffect(() => {
     if (!requiresTurnstile) return;
@@ -123,9 +141,11 @@ export default function AnalyzePage() {
 
   const handleFileAccepted = async (file) => {
     resetAnalysis();
-    setStatus("loading");
+    setStatus("preprocessing");
     setErrorMsg("");
+    setErrorPhase(null);
     setTurnstileError("");
+    setTurnstileToken("");
     setLastFile(file);
 
     try {
@@ -141,6 +161,7 @@ export default function AnalyzePage() {
 
       if (nextPreprocessResult.quality === PREPROCESS_QUALITY.BAD) {
         setPreprocessResult(nextPreprocessResult);
+        setErrorPhase("preprocess");
         throw new Error(nextPreprocessResult.qualityReason);
       }
 
@@ -157,18 +178,12 @@ export default function AnalyzePage() {
       setSegments(nextSegments);
       setWarning(nextWarning || null);
       setPreprocessResult(nextPreprocessResult);
-
-      await runAnalysis({ file, text, segments: nextSegments });
-
       setResult({
         filename: file.name,
         size: (file.size / 1024 / 1024).toFixed(2),
+        blockCount: nextPreprocessResult.blocks.length,
       });
-      setStatus("success");
-      if (turnstileWidgetId.current && window.turnstile?.reset) {
-        window.turnstile.reset(turnstileWidgetId.current);
-      }
-      setTurnstileToken("");
+      setStatus("ready");
     } catch (err) {
       if (turnstileWidgetId.current && window.turnstile?.reset) {
         window.turnstile.reset(turnstileWidgetId.current);
@@ -179,13 +194,14 @@ export default function AnalyzePage() {
     }
   };
 
-  const retry = async () => {
+  const handleContinue = async () => {
     if (!lastFile || !parsedText) {
       reset();
       return;
     }
-    setStatus("loading");
+    setStatus("analyzing");
     setErrorMsg("");
+    setErrorPhase(null);
     try {
       const nextSegments = segments?.length
         ? segments
@@ -198,6 +214,7 @@ export default function AnalyzePage() {
       setResult({
         filename: lastFile.name,
         size: (lastFile.size / 1024 / 1024).toFixed(2),
+        blockCount: preprocessResult?.blocks?.length || 0,
       });
       setStatus("success");
       if (turnstileWidgetId.current && window.turnstile?.reset) {
@@ -209,6 +226,7 @@ export default function AnalyzePage() {
         window.turnstile.reset(turnstileWidgetId.current);
       }
       setTurnstileToken("");
+      setErrorPhase("analysis");
       setErrorMsg(err.message || "Unexpected parsing error.");
       setStatus("error");
     }
@@ -219,6 +237,7 @@ export default function AnalyzePage() {
     setStatus("idle");
     setResult(null);
     setErrorMsg("");
+    setErrorPhase(null);
     setTurnstileError("");
     setTurnstileToken("");
   };
@@ -247,7 +266,30 @@ export default function AnalyzePage() {
               {warning}
             </p>
           )}
-          {status === "loading" && <LoadingCard />}
+          {status === "preprocessing" && (
+            <LoadingCard
+              title="Preprocessing document…"
+              message="Checking structure and extracting clause-like blocks."
+            />
+          )}
+          {status === "ready" && preprocessResult && (
+            <PreprocessPreviewCard
+              fileName={uploadedFile?.name}
+              quality={preprocessResult.quality}
+              qualityReason={preprocessResult.qualityReason}
+              blockCount={preprocessResult.blocks.length}
+              blocks={preprocessResult.blocks}
+              onContinue={handleContinue}
+              onReset={reset}
+              disabled={!useMock && requiresTurnstile && !turnstileToken}
+            />
+          )}
+          {status === "analyzing" && (
+            <LoadingCard
+              title="Analyzing extracted blocks…"
+              message="Sending preprocessed content for AI classification."
+            />
+          )}
           {status === "success" && (
             <SuccessCard
               result={result}
@@ -256,8 +298,20 @@ export default function AnalyzePage() {
             />
           )}
           {status === "error" && (
-            <ErrorCard message={errorMsg} onRetry={retry} onReset={reset} />
+            <ErrorCard
+              message={errorMsg}
+              onRetry={errorPhase === "analysis" ? handleContinue : undefined}
+              onReset={reset}
+            />
           )}
+          {status === "ready" &&
+            !useMock &&
+            requiresTurnstile &&
+            !turnstileToken && (
+              <p className="text-sm text-slate-500" role="status">
+                Complete Turnstile verification to continue to AI analysis.
+              </p>
+            )}
         </section>
       </Container>
     </main>
