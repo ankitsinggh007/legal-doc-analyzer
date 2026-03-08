@@ -18,6 +18,7 @@ import {
   PREPROCESS_QUALITY,
 } from "@/lib/document-processing/preprocessResult";
 import { evaluateDocumentQuality } from "@/lib/document-processing/qualityGate";
+import { extractBlocks } from "@/lib/document-processing/extractBlocks";
 
 function mergeWarnings(...messages) {
   return Array.from(
@@ -130,10 +131,12 @@ export default function AnalyzePage() {
     try {
       const { text, warning: parseWarning, pages } = await parseDocument(file);
       const documentId = createDocumentId();
+      const blocks = extractBlocks(text);
       const nextPreprocessResult = evaluateDocumentQuality({
         text,
         pages,
         documentId,
+        blocks,
       });
 
       if (nextPreprocessResult.quality === PREPROCESS_QUALITY.BAD) {
