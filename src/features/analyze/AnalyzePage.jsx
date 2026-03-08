@@ -15,9 +15,15 @@ import Disclaimer from "@/components/Disclaimer";
 import { segmentText } from "@/utils/segmentText";
 import {
   createDocumentId,
-  createPreprocessResult,
   PREPROCESS_QUALITY,
 } from "@/lib/document-processing/preprocessResult";
+import { evaluateDocumentQuality } from "@/lib/document-processing/qualityGate";
+
+function mergeWarnings(...messages) {
+  return Array.from(
+    new Set(messages.map((message) => message?.trim()).filter(Boolean))
+  ).join(" ");
+}
 
 export default function AnalyzePage() {
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
@@ -115,24 +121,38 @@ export default function AnalyzePage() {
   };
 
   const handleFileAccepted = async (file) => {
+    resetAnalysis();
     setStatus("loading");
     setErrorMsg("");
     setTurnstileError("");
     setLastFile(file);
 
     try {
-      const { text, warning } = await parseDocument(file);
-      const nextSegments = segmentText(text);
-      const nextPreprocessResult = createPreprocessResult({
-        documentId: createDocumentId(),
-        quality: warning ? PREPROCESS_QUALITY.WARNING : PREPROCESS_QUALITY.GOOD,
-        qualityReason: warning || "",
+      const { text, warning: parseWarning, pages } = await parseDocument(file);
+      const documentId = createDocumentId();
+      const nextPreprocessResult = evaluateDocumentQuality({
+        text,
+        pages,
+        documentId,
       });
+
+      if (nextPreprocessResult.quality === PREPROCESS_QUALITY.BAD) {
+        setPreprocessResult(nextPreprocessResult);
+        throw new Error(nextPreprocessResult.qualityReason);
+      }
+
+      const nextSegments = segmentText(text);
+      const nextWarning = mergeWarnings(
+        parseWarning,
+        nextPreprocessResult.quality === PREPROCESS_QUALITY.WARNING
+          ? nextPreprocessResult.qualityReason
+          : ""
+      );
 
       setUploadedFile(file);
       setParsedText(text);
       setSegments(nextSegments);
-      setWarning(warning);
+      setWarning(nextWarning || null);
       setPreprocessResult(nextPreprocessResult);
 
       await runAnalysis({ file, text, segments: nextSegments });
