@@ -65,14 +65,14 @@ export default function AnalyzePage() {
 
   useEffect(() => {
     if (!preprocessResult) return;
-    if (clauses?.length) {
+    if (clauses?.length && result) {
       setStatus("success");
       return;
     }
     if (parsedText) {
       setStatus("ready");
     }
-  }, [clauses, parsedText, preprocessResult]);
+  }, [clauses, parsedText, preprocessResult, result]);
 
   useEffect(() => {
     if (!requiresTurnstile) return;
@@ -107,7 +107,12 @@ export default function AnalyzePage() {
     };
   }, [requiresTurnstile, showTurnstile, turnstileSiteKey]);
 
-  const runAnalysis = async ({ file, text, segments: nextSegments }) => {
+  const runAnalysis = async ({
+    file,
+    documentId,
+    blocks,
+    segments: nextSegments,
+  }) => {
     const cacheKey = getCacheKey(file);
     const cached = getCachedResult(cacheKey);
 
@@ -123,9 +128,14 @@ export default function AnalyzePage() {
     }
 
     const analysis = useMock
-      ? await analyzeMock(text, nextSegments)
+      ? await analyzeMock({
+          documentId,
+          blocks,
+          segments: nextSegments,
+        })
       : await analyzeDocument({
-          text,
+          documentId,
+          blocks,
           segments: nextSegments,
           turnstileToken,
         });
@@ -208,7 +218,8 @@ export default function AnalyzePage() {
         : segmentText(parsedText);
       await runAnalysis({
         file: lastFile,
-        text: parsedText,
+        documentId: preprocessResult?.documentId,
+        blocks: preprocessResult?.blocks || [],
         segments: nextSegments,
       });
       setResult({

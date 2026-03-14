@@ -1,9 +1,16 @@
+import { mapAnalysisResultsToClauses } from "@/utils/mapAnalysisResults";
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
-export async function analyzeDocument({ text, segments, turnstileToken }) {
+export async function analyzeDocument({
+  documentId,
+  blocks,
+  segments,
+  turnstileToken,
+}) {
   const payload = {
-    text,
-    segments: Array.isArray(segments) ? segments : [],
+    documentId,
+    blocks: Array.isArray(blocks) ? blocks : [],
     turnstileToken,
   };
 
@@ -19,8 +26,12 @@ export async function analyzeDocument({ text, segments, turnstileToken }) {
     throw new Error(msg);
   }
 
+  const results = Array.isArray(data?.results) ? data.results : [];
   return {
-    clauses: Array.isArray(data?.clauses) ? data.clauses : [],
+    documentId:
+      typeof data?.documentId === "string" ? data.documentId : documentId,
+    results,
+    clauses: mapAnalysisResultsToClauses(results, blocks, segments),
     summary: typeof data?.summary === "string" ? data.summary : "",
   };
 }
