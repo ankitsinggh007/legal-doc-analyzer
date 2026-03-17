@@ -9,6 +9,15 @@ const NUMBER_ONLY_HEADING_REGEX = /^\d+\.$/;
 const CLAUSE_SECTION_ONLY_REGEX = /^(Clause|Section)\s+\d+\b\.?$/i;
 const ALL_CAPS_HEADING_REGEX = /^[A-Z][A-Z\s&/-]{2,}$/;
 const IGNORED_SECTION_REGEX = /^(Schedule|Annexure|Exhibit|Appendix)\b/i;
+const NUMBERED_LINE_REGEX = /^(\d+\.)\s+(.+)$/;
+const CLAUSE_SECTION_LINE_REGEX = /^((?:Clause|Section)\s+\d+\b\.?)\s+(.+)$/i;
+const INLINE_SPLIT_REGEX = /^(.{1,100}?)[.:;]\s+(.+)$/;
+const BODY_START_REGEX =
+  /^(that|the|if|in|within|where|when|upon|all|either|each|party|tenant|landlord|lessee|lessor|owner|consultant|employee|company|receiving|disclosing|for|this|any|neither)\b/i;
+const EARLY_BODY_VERB_REGEX =
+  /\b(shall|must|will|may|agrees?|undertakes?|means|includes?|constitutes?)\b/i;
+const DEFINITION_MARKER_REGEX =
+  /\b(means|shall mean|is defined as|refers to)\b/i;
 
 function normalizeLine(line) {
   return line.replace(/\s+/g, " ").trim();
@@ -66,6 +75,104 @@ function hasSubstantialBody(line) {
   return line.length >= 40 || words.length >= 8;
 }
 
+function isLikelyBodyText(line) {
+  if (!line) return false;
+
+  const normalized = normalizeLine(line);
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const leadingWindow = words.slice(0, 12).join(" ");
+
+  return (
+    (BODY_START_REGEX.test(normalized) ||
+      EARLY_BODY_VERB_REGEX.test(leadingWindow)) &&
+    hasSubstantialBody(normalized)
+  );
+}
+
+function isLikelyInlineHeading(line) {
+  if (!line) return false;
+
+  const normalized = normalizeLine(line);
+  const words = normalized.split(/\s+/).filter(Boolean);
+
+  return (
+    words.length >= 1 &&
+    words.length <= 12 &&
+    normalized.length <= 100 &&
+    !DEFINITION_MARKER_REGEX.test(normalized) &&
+    !EARLY_BODY_VERB_REGEX.test(normalized)
+  );
+}
+
+function isDefinitionStyleBody(line) {
+  if (!line) return false;
+  return DEFINITION_MARKER_REGEX.test(line);
+}
+
+function splitInlineClauseStart(line) {
+  const normalized = normalizeLine(line);
+  if (!normalized) {
+    return { sectionLabel: "", inlineBodyText: "" };
+  }
+
+  const prefixedMatch =
+    normalized.match(NUMBERED_LINE_REGEX) ||
+    normalized.match(CLAUSE_SECTION_LINE_REGEX);
+
+  if (prefixedMatch) {
+    const prefix = normalizeLine(prefixedMatch[1]);
+    const remainder = normalizeLine(prefixedMatch[2]);
+
+    if (!remainder) {
+      return { sectionLabel: prefix, inlineBodyText: "" };
+    }
+
+    // Definition clauses are body-style clauses, even though they often start
+    // with a short phrase before `means` or similar wording.
+    if (isDefinitionStyleBody(remainder)) {
+      return { sectionLabel: prefix, inlineBodyText: remainder };
+    }
+
+    const inlineSplit = remainder.match(INLINE_SPLIT_REGEX);
+    if (inlineSplit) {
+      const heading = normalizeLine(inlineSplit[1]);
+      const body = normalizeLine(inlineSplit[2]);
+
+      if (isLikelyInlineHeading(heading) && isLikelyBodyText(body)) {
+        return {
+          sectionLabel: `${prefix} ${heading}`.trim(),
+          inlineBodyText: body,
+        };
+      }
+    }
+
+    if (isLikelyBodyText(remainder)) {
+      return { sectionLabel: prefix, inlineBodyText: remainder };
+    }
+
+    return { sectionLabel: normalized, inlineBodyText: "" };
+  }
+
+  const inlineSplit = normalized.match(INLINE_SPLIT_REGEX);
+  if (inlineSplit) {
+    const heading = normalizeLine(inlineSplit[1]);
+    const body = normalizeLine(inlineSplit[2]);
+
+    if (
+      isLikelyInlineHeading(heading) &&
+      isLikelyBodyText(body) &&
+      !isDefinitionStyleBody(normalized)
+    ) {
+      return {
+        sectionLabel: heading,
+        inlineBodyText: body,
+      };
+    }
+  }
+
+  return { sectionLabel: normalized, inlineBodyText: "" };
+}
+
 function findTopLevelStart(lines, startIndex) {
   const current = lines[startIndex];
   if (!current) return null;
@@ -75,7 +182,14 @@ function findTopLevelStart(lines, startIndex) {
   }
 
   if (isTopLevelHeading(current.text)) {
-    return { type: "block", label: current.text, lineIndex: startIndex };
+    const parsed = splitInlineClauseStart(current.text);
+
+    return {
+      type: "block",
+      label: parsed.sectionLabel || current.text,
+      lineIndex: startIndex,
+      inlineBodyText: parsed.inlineBodyText || "",
+    };
   }
 
   if (DECIMAL_HEADING_REGEX.test(current.text)) {
@@ -93,12 +207,15 @@ function findTopLevelStart(lines, startIndex) {
         return null;
       }
 
-      if (isLikelyHeadingText(candidate.text)) {
+      const parsedCandidate = splitInlineClauseStart(candidate.text);
+      if (isLikelyHeadingText(parsedCandidate.sectionLabel || candidate.text)) {
         return {
           type: "block",
-          label: `${current.text} ${candidate.text}`.trim(),
+          label:
+            `${current.text} ${parsedCandidate.sectionLabel || candidate.text}`.trim(),
           lineIndex: startIndex,
           mergedUntil: i,
+          inlineBodyText: parsedCandidate.inlineBodyText || "",
         };
       }
     }
@@ -119,10 +236,16 @@ function collectBlockText(
   startLineIndex,
   endLineIndex,
   label,
-  mergedUntil
+  mergedUntil,
+  inlineBodyText = ""
 ) {
   const blockLines = [];
   let bodyStarted = false;
+
+  if (inlineBodyText) {
+    blockLines.push(inlineBodyText);
+    bodyStarted = true;
+  }
 
   for (let i = startLineIndex; i < endLineIndex; i += 1) {
     if (mergedUntil !== undefined && i > startLineIndex && i <= mergedUntil) {
@@ -185,7 +308,8 @@ export function extractBlocks(text) {
       i,
       nextStartIndex,
       start.label,
-      start.mergedUntil
+      start.mergedUntil,
+      start.inlineBodyText
     );
 
     if (!blockText) {
