@@ -21,6 +21,7 @@ export default function ViewerPage() {
     uploadedFile,
     parsedText,
     segments,
+    preprocessResult,
     clauses,
     resetAnalysis,
     isHydrated,
@@ -31,6 +32,25 @@ export default function ViewerPage() {
   const [toast, setToast] = useState(null);
   const [activeTypes, setActiveTypes] = useState(new Set());
   const navigate = useNavigate();
+  const documentBlocks = useMemo(
+    () =>
+      Array.isArray(preprocessResult?.blocks) ? preprocessResult.blocks : [],
+    [preprocessResult]
+  );
+  const blockMap = useMemo(
+    () => new Map(documentBlocks.map((block) => [block.blockId, block])),
+    [documentBlocks]
+  );
+  const viewerClauses = useMemo(() => {
+    if (!Array.isArray(clauses)) return [];
+
+    const clausesWithBlocks = clauses.filter(
+      (clause) =>
+        typeof clause?.blockId === "string" && blockMap.has(clause.blockId)
+    );
+
+    return clausesWithBlocks.length ? clausesWithBlocks : clauses;
+  }, [blockMap, clauses]);
 
   const normalizedSegments = useMemo(() => {
     if (segments?.length) return segments;
@@ -39,22 +59,22 @@ export default function ViewerPage() {
 
   const clauseTypes = useMemo(() => {
     const unique = Array.from(
-      new Set((clauses || []).map((clause) => clause.type).filter(Boolean))
+      new Set(viewerClauses.map((clause) => clause.type).filter(Boolean))
     );
     return unique.length ? unique : DEFAULT_CLAUSE_TYPES;
-  }, [clauses]);
+  }, [viewerClauses]);
 
   const clauseCounts = useMemo(() => {
     const counts = {};
-    (clauses || []).forEach((clause) => {
+    viewerClauses.forEach((clause) => {
       counts[clause.type] = (counts[clause.type] || 0) + 1;
     });
     return counts;
-  }, [clauses]);
+  }, [viewerClauses]);
 
   const citationsMap = useMemo(() => {
     const map = new Map();
-    (clauses || []).forEach((clause, index) => {
+    viewerClauses.forEach((clause, index) => {
       const ids = Array.isArray(clause?.citations) ? clause.citations : [];
       ids.forEach((id) => {
         if (!map.has(id)) map.set(id, []);
@@ -62,16 +82,16 @@ export default function ViewerPage() {
       });
     });
     return map;
-  }, [clauses]);
+  }, [viewerClauses]);
 
   const visibleClauses = useMemo(() => {
-    return (clauses || [])
+    return viewerClauses
       .map((clause, idx) => ({ clause, idx }))
       .filter(({ clause }) => activeTypes.has(clause.type));
-  }, [clauses, activeTypes]);
+  }, [viewerClauses, activeTypes]);
 
   const selectedClause =
-    selectedClauseIndex !== null ? clauses[selectedClauseIndex] : null;
+    selectedClauseIndex !== null ? viewerClauses[selectedClauseIndex] : null;
   const selectedCitations = useMemo(() => {
     if (!selectedClause?.citations?.length) return new Set();
     return new Set(selectedClause.citations);
@@ -87,12 +107,12 @@ export default function ViewerPage() {
   const selectClause = useCallback(
     (index) => {
       setSelectedClauseIndex(index);
-      const clause = clauses[index];
+      const clause = viewerClauses[index];
       if (clause?.citations?.length) {
         scrollToSegment(clause.citations[0]);
       }
     },
-    [clauses, scrollToSegment]
+    [scrollToSegment, viewerClauses]
   );
 
   const toggleType = useCallback((type) => {
@@ -121,8 +141,10 @@ export default function ViewerPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isHydrated && !parsedText) navigate("/analyze");
-  }, [isHydrated, parsedText, navigate]);
+    if (isHydrated && (!parsedText || !documentBlocks.length)) {
+      navigate("/analyze");
+    }
+  }, [documentBlocks.length, isHydrated, navigate, parsedText]);
 
   useEffect(() => {
     setSelectedClauseIndex(null);
@@ -130,11 +152,11 @@ export default function ViewerPage() {
 
   useEffect(() => {
     if (selectedClauseIndex === null) return;
-    const clause = clauses[selectedClauseIndex];
+    const clause = viewerClauses[selectedClauseIndex];
     if (!clause || !activeTypes.has(clause.type)) {
       setSelectedClauseIndex(null);
     }
-  }, [activeTypes, clauses, selectedClauseIndex]);
+  }, [activeTypes, selectedClauseIndex, viewerClauses]);
 
   if (!parsedText) return null;
 
@@ -153,7 +175,7 @@ export default function ViewerPage() {
             fileName={uploadedFile?.name}
             resetAnalysis={resetAnalysis}
             navigate={navigate}
-            clauses={clauses}
+            clauses={viewerClauses}
             summary={summary}
             parsedText={parsedText}
             segments={normalizedSegments}
@@ -176,12 +198,12 @@ export default function ViewerPage() {
                 {normalizedSegments.map((segment) => {
                   const clauseIndexes = citationsMap.get(segment.id) || [];
                   const activeIndexes = clauseIndexes.filter((idx) =>
-                    activeTypes.has(clauses[idx]?.type)
+                    activeTypes.has(viewerClauses[idx]?.type)
                   );
                   const highlightIndex = activeIndexes[0];
                   const highlightClause =
                     highlightIndex !== undefined
-                      ? clauses[highlightIndex]
+                      ? viewerClauses[highlightIndex]
                       : null;
                   const isHighlighted = Boolean(highlightClause);
                   const colors = isHighlighted
@@ -331,6 +353,13 @@ export default function ViewerPage() {
                   {(clauses || []).length
                     ? "No clauses for the selected filters. Review the summary below."
                     : "No clauses found. Review the summary below."}
+                </p>
+              )}
+
+              {!viewerClauses.length && clauses.length > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Stored analysis data is missing block linkage. Re-run analysis
+                  from the upload flow to use the new block-based viewer.
                 </p>
               )}
 

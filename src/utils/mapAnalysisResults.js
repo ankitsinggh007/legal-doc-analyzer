@@ -35,14 +35,18 @@ export function mapAnalysisResultsToClauses(results, blocks, segments) {
         typeof result.explanation === "string" ? result.explanation.trim() : "";
       const risk =
         typeof result.riskFlag === "string" ? result.riskFlag.trim() : "medium";
+      const blockId =
+        typeof result.blockId === "string" ? result.blockId.trim() : "";
+      const block = blockMap.get(blockId);
 
       if (!type) return null;
 
       return {
+        blockId,
         type,
         risk,
         explanation,
-        citations: getCitationsForBlock(blockMap.get(result.blockId), segments),
+        citations: getCitationsForBlock(block, segments),
       };
     })
     .filter(Boolean);
