@@ -13,7 +13,6 @@ import ErrorCard from "./components/ErrorCard"; //
 import PreprocessPreviewCard from "./components/PreprocessPreviewCard";
 import parseDocument from "../../utils/parseDocument";
 import Disclaimer from "@/components/Disclaimer";
-import { segmentText } from "@/utils/segmentText";
 import {
   createDocumentId,
   PREPROCESS_QUALITY,
@@ -42,7 +41,6 @@ export default function AnalyzePage() {
     uploadedFile,
     setUploadedFile,
     setParsedText,
-    setSegments,
     setWarning,
     setPreprocessResult,
     setClauses,
@@ -50,7 +48,6 @@ export default function AnalyzePage() {
     resetAnalysis,
     warning,
     parsedText,
-    segments,
     preprocessResult,
     clauses,
   } = useAnalyze();
@@ -107,19 +104,13 @@ export default function AnalyzePage() {
     };
   }, [requiresTurnstile, showTurnstile, turnstileSiteKey]);
 
-  const runAnalysis = async ({
-    file,
-    documentId,
-    blocks,
-    segments: nextSegments,
-  }) => {
+  const runAnalysis = async ({ file, documentId, blocks }) => {
     const cacheKey = getCacheKey(file);
     const cached = getCachedResult(cacheKey);
 
     if (cached && Array.isArray(cached.clauses)) {
       setClauses(cached.clauses);
       setSummary(cached.summary || "");
-      setSegments(cached.segments || nextSegments || []);
       return;
     }
 
@@ -131,12 +122,10 @@ export default function AnalyzePage() {
       ? await analyzeMock({
           documentId,
           blocks,
-          segments: nextSegments,
         })
       : await analyzeDocument({
           documentId,
           blocks,
-          segments: nextSegments,
           turnstileToken,
         });
 
@@ -145,7 +134,6 @@ export default function AnalyzePage() {
     setCachedResult(cacheKey, {
       clauses: analysis.clauses || [],
       summary: analysis.summary || "",
-      segments: nextSegments || [],
     });
   };
 
@@ -175,7 +163,6 @@ export default function AnalyzePage() {
         throw new Error(nextPreprocessResult.qualityReason);
       }
 
-      const nextSegments = segmentText(text);
       const nextWarning = mergeWarnings(
         parseWarning,
         nextPreprocessResult.quality === PREPROCESS_QUALITY.WARNING
@@ -185,7 +172,6 @@ export default function AnalyzePage() {
 
       setUploadedFile(file);
       setParsedText(text);
-      setSegments(nextSegments);
       setWarning(nextWarning || null);
       setPreprocessResult(nextPreprocessResult);
       setResult({
@@ -213,14 +199,10 @@ export default function AnalyzePage() {
     setErrorMsg("");
     setErrorPhase(null);
     try {
-      const nextSegments = segments?.length
-        ? segments
-        : segmentText(parsedText);
       await runAnalysis({
         file: lastFile,
         documentId: preprocessResult?.documentId,
         blocks: preprocessResult?.blocks || [],
-        segments: nextSegments,
       });
       setResult({
         filename: lastFile.name,
