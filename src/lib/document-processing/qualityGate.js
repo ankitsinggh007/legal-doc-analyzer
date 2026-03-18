@@ -1,7 +1,7 @@
 import {
   createPreprocessResult,
   PREPROCESS_QUALITY,
-} from "@/lib/document-processing/preprocessResult";
+} from "./preprocessResult.js";
 
 const WARNING_TEXT_LENGTH = 800;
 const BAD_TEXT_LENGTH = 400;

@@ -12,6 +12,13 @@ Disclaimer: AI-assisted, may be inaccurate, not legal advice.
 - Export annotated PDF.
 - Clear loading, empty, error, and success states.
 
+**Scope**
+- Best on digitally generated, structured agreements.
+- Optimized for NDA, service, consulting, and rental or lease-style agreements.
+- Includes a preprocessing quality gate and block preview before AI analysis.
+- Image-based, weakly structured, or poorly extracted documents may be warned on or rejected before analysis.
+- Not designed to support every legal PDF shape.
+
 **Tech Stack**
 - React + Vite
 - Tailwind CSS

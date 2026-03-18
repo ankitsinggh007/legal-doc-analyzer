@@ -28,8 +28,8 @@ export default function HomePage() {
           <span className="text-primary-600">Legal Document Analyzer</span>
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-400 max-w-xl mb-8">
-          Upload any contract, highlight key clauses, and get instant risk
-          summaries — all powered by AI.
+          Upload structured agreements, review extracted clause-like blocks, and
+          get AI risk summaries with citations.
         </p>
         <button
           ref={getBtn}
@@ -52,18 +52,18 @@ export default function HomePage() {
         {[
           {
             icon: "🧠",
-            title: "AI Clause Detection",
-            desc: "Automatically identify and highlight key clauses.",
+            title: "Clause Preview",
+            desc: "Review extracted clause-like blocks before AI analysis.",
           },
           {
             icon: "⚖️",
             title: "Risk Summary",
-            desc: "Instantly assess potential risks and obligations.",
+            desc: "Assess key risks and obligations from supported agreements.",
           },
           {
             icon: "📄",
-            title: "Export PDF",
-            desc: "Save professional, color-coded reports instantly.",
+            title: "Quality Gate",
+            desc: "Warn or reject weakly structured documents before analysis.",
           },
         ].map((f) => (
           <article

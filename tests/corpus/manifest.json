@@ -1,0 +1,145 @@
+{
+  "documents": [
+    {
+      "file": "Basic-Non-Disclosure-Agreement.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 9, "max": 13 },
+      "requiredLabels": [
+        "1. Definition of Confidential Information",
+        "3. Obligations of Receiving Party",
+        "5. Relationships"
+      ]
+    },
+    {
+      "file": "Confidentiality Agreement.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "warning",
+      "blockCountRange": { "min": 14, "max": 20 },
+      "requiredLabels": [
+        "CONFIDENTIALITY AGREEMENT",
+        "2. Nondisclosure of Confidential Information",
+        "4. Notice Preceding Compelled Disclosure"
+      ]
+    },
+    {
+      "file": "DRUVA_mca_professional_services.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 7, "max": 12 },
+      "requiredLabels": [
+        "1. Definitions",
+        "3. Proprietary rights",
+        "5. Limited warranty"
+      ]
+    },
+    {
+      "file": "EX-99.(d)(2).pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "warning",
+      "blockCountRange": { "min": 10, "max": 20 },
+      "requiredLabels": ["MUTUAL CONFIDENTIALITY AGREEMENT", "1.", "14."]
+    },
+    {
+      "file": "Exhibit.pdf",
+      "supportStatus": "unsupported",
+      "enabled": true,
+      "expectedErrorContains": "processing limit"
+    },
+    {
+      "file": "NON_DISCLOSURE_AGREEMENT.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 12, "max": 25 },
+      "requiredLabels": ["NON-DISCLOSURE AGREEMENT", "3.", "11."]
+    },
+    {
+      "file": "Independent-Contractor_Freelancer.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 10, "max": 16 },
+      "requiredLabels": [
+        "1. Terms and conditions of Engagement",
+        "6. Confidentiality",
+        "8. Termination"
+      ]
+    },
+    {
+      "file": "MariaDB_PS_Agreement-US-v1_TC_0.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 9, "max": 13 },
+      "textStartsWithOwnLabelBlockIds": ["b1", "b2"],
+      "requiredLabels": [
+        "Section 1. DEFINITIONS .",
+        "Section 4. FEES, EXPENSES AND PAYMENTS.",
+        "Section 8. CONFIDENTIALITY."
+      ]
+    },
+    {
+      "file": "nda_201600506(structured).pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 8, "max": 12 },
+      "requiredLabels": [
+        "MUTUAL NON-DISCLOSURE AGREEMENT",
+        "1. The Receiving Party will:",
+        "7."
+      ]
+    },
+    {
+      "file": "recht(structured).pdf",
+      "supportStatus": "unsupported",
+      "enabled": true,
+      "expectedQuality": "warning",
+      "blockCountRange": { "min": 16, "max": 22 }
+    },
+    {
+      "file": "RENTAL AGREEMENT.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 20, "max": 28 },
+      "requiredLabels": ["RENTAL AGREEMENT", "1.", "11."]
+    },
+    {
+      "file": "resume-visualizer.pdf",
+      "supportStatus": "unsupported",
+      "enabled": true,
+      "expectedQuality": "bad"
+    },
+    {
+      "file": "ankit-singh-Resume - Ankit singh.pdf_1772632800235.pdf",
+      "supportStatus": "unsupported",
+      "enabled": true,
+      "expectedErrorContains": "image-based or empty"
+    },
+    {
+      "file": "RW4 FSP individual consulting agreement.pdf",
+      "supportStatus": "supported",
+      "enabled": true,
+      "expectedQuality": "warning",
+      "blockCountRange": { "min": 12, "max": 16 },
+      "requiredLabels": [
+        "CONSULTING AGREEMENT",
+        "1. Services.",
+        "4. Independent Contractor Status."
+      ]
+    },
+    {
+      "file": "sample-standard_contract.pdf",
+      "supportStatus": "unsupported",
+      "enabled": true,
+      "expectedQuality": "good",
+      "blockCountRange": { "min": 2, "max": 3 }
+    }
+  ]
+}
