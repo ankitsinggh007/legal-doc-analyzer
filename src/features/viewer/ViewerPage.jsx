@@ -234,7 +234,7 @@ export default function ViewerPage() {
                       data-block-id={block.blockId}
                       role={isInteractive ? "button" : undefined}
                       tabIndex={isInteractive ? 0 : -1}
-                      className={`rounded-2xl border px-5 py-4 transition-all outline-none ${
+                      className={`min-w-0 rounded-2xl border px-5 py-4 transition-all outline-none ${
                         isInteractive
                           ? "cursor-pointer shadow-sm"
                           : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
@@ -264,7 +264,7 @@ export default function ViewerPage() {
                           {block.sectionLabel}
                         </h3>
                         {blockBodyText ? (
-                          <p className="whitespace-pre-wrap text-base leading-8">
+                          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-base leading-8">
                             {blockBodyText}
                           </p>
                         ) : null}
