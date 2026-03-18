@@ -2,12 +2,7 @@ import { mapAnalysisResultsToClauses } from "@/utils/mapAnalysisResults";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
-export async function analyzeDocument({
-  documentId,
-  blocks,
-  segments,
-  turnstileToken,
-}) {
+export async function analyzeDocument({ documentId, blocks, turnstileToken }) {
   const payload = {
     documentId,
     blocks: Array.isArray(blocks) ? blocks : [],
@@ -31,7 +26,7 @@ export async function analyzeDocument({
     documentId:
       typeof data?.documentId === "string" ? data.documentId : documentId,
     results,
-    clauses: mapAnalysisResultsToClauses(results, blocks, segments),
+    clauses: mapAnalysisResultsToClauses(results, blocks),
     summary: typeof data?.summary === "string" ? data.summary : "",
   };
 }

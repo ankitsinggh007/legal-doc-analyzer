@@ -1,6 +1,6 @@
 import { mapAnalysisResultsToClauses } from "@/utils/mapAnalysisResults";
 
-export async function analyzeMock({ documentId, blocks = [], segments = [] }) {
+export async function analyzeMock({ documentId, blocks = [] }) {
   // Simulate processing delay
   await new Promise((res) => setTimeout(res, 1200));
   const sourceBlocks = Array.isArray(blocks) ? blocks.slice(0, 3) : [];
@@ -37,7 +37,7 @@ export async function analyzeMock({ documentId, blocks = [], segments = [] }) {
   return {
     documentId,
     results,
-    clauses: mapAnalysisResultsToClauses(results, blocks, segments),
+    clauses: mapAnalysisResultsToClauses(results, blocks),
     summary:
       "Detected key clauses covering termination, liability limits, and confidentiality obligations.",
   };

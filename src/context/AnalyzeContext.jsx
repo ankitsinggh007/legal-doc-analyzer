@@ -9,7 +9,6 @@ const AnalyzeContext = createContext();
 export const AnalyzeProvider = ({ children }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [parsedText, setParsedText] = useState(null);
-  const [segments, setSegments] = useState([]);
   const [warning, setWarning] = useState(null);
   const [preprocessResult, setPreprocessResult] = useState(null);
   const [clauses, setClauses] = useState([]);
@@ -22,7 +21,6 @@ export const AnalyzeProvider = ({ children }) => {
     if (saved && saved.parsedText) {
       if (saved.uploadedFile) setUploadedFile(saved.uploadedFile);
       setParsedText(saved.parsedText);
-      setSegments(saved.segments || []);
       setWarning(saved.warning);
       setPreprocessResult(
         saved.preprocessResult
@@ -50,28 +48,18 @@ export const AnalyzeProvider = ({ children }) => {
       saveState(STORAGE_KEY, {
         uploadedFile: safeFileInfo,
         parsedText,
-        segments,
         warning,
         preprocessResult,
         clauses,
         summary,
       });
     }
-  }, [
-    uploadedFile,
-    parsedText,
-    segments,
-    warning,
-    preprocessResult,
-    clauses,
-    summary,
-  ]);
+  }, [uploadedFile, parsedText, warning, preprocessResult, clauses, summary]);
 
   // ✅ Reset + clear
   const resetAnalysis = () => {
     setUploadedFile(null);
     setParsedText(null);
-    setSegments([]);
     setWarning(null);
     setPreprocessResult(null);
     setClauses([]);
@@ -84,7 +72,6 @@ export const AnalyzeProvider = ({ children }) => {
       value={{
         uploadedFile,
         parsedText,
-        segments,
         warning,
         preprocessResult,
         clauses,
@@ -94,7 +81,6 @@ export const AnalyzeProvider = ({ children }) => {
         setSummary,
         setUploadedFile,
         setParsedText,
-        setSegments,
         setPreprocessResult,
         resetAnalysis,
         setWarning,

@@ -1,24 +1,4 @@
-function getCitationsForBlock(block, segments) {
-  if (!block || !Array.isArray(segments)) return [];
-
-  return segments
-    .filter((segment) => {
-      if (
-        typeof segment?.startIndex !== "number" ||
-        typeof segment?.endIndex !== "number"
-      ) {
-        return false;
-      }
-
-      return (
-        segment.startIndex <= block.endIndex &&
-        segment.endIndex >= block.startIndex
-      );
-    })
-    .map((segment) => segment.id);
-}
-
-export function mapAnalysisResultsToClauses(results, blocks, segments) {
+export function mapAnalysisResultsToClauses(results, blocks) {
   if (!Array.isArray(results)) return [];
 
   const blockMap = new Map(
@@ -37,16 +17,14 @@ export function mapAnalysisResultsToClauses(results, blocks, segments) {
         typeof result.riskFlag === "string" ? result.riskFlag.trim() : "medium";
       const blockId =
         typeof result.blockId === "string" ? result.blockId.trim() : "";
-      const block = blockMap.get(blockId);
 
       if (!type) return null;
 
       return {
-        blockId,
+        blockId: blockMap.has(blockId) ? blockId : "",
         type,
         risk,
         explanation,
-        citations: getCitationsForBlock(block, segments),
       };
     })
     .filter(Boolean);
