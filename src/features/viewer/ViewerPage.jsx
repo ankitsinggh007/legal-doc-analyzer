@@ -5,7 +5,6 @@ import { Container } from "@/components/layout/Container";
 import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
 import { lazy, Suspense } from "react";
 import { HeaderBar } from "./components/HeaderBar";
-import { segmentText } from "@/utils/segmentText";
 import {
   DEFAULT_CLAUSE_TYPES,
   getClauseColor,
@@ -16,11 +15,28 @@ import Disclaimer from "@/components/Disclaimer";
 const ColorLegend = lazy(() => import("./components/ColorLegend"));
 const FilterTabs = lazy(() => import("./components/FilterTabs"));
 
+function getBlockBodyText(block) {
+  const sectionLabel = String(block?.sectionLabel || "").trim();
+  const text = String(block?.text || "").trim();
+
+  if (!sectionLabel || !text) {
+    return text;
+  }
+
+  if (!text.startsWith(sectionLabel)) {
+    return text;
+  }
+
+  return text
+    .slice(sectionLabel.length)
+    .replace(/^[\s.:;,-]+/, "")
+    .trim();
+}
+
 export default function ViewerPage() {
   const {
     uploadedFile,
-    parsedText,
-    segments,
+    preprocessResult,
     clauses,
     resetAnalysis,
     isHydrated,
@@ -31,54 +47,68 @@ export default function ViewerPage() {
   const [toast, setToast] = useState(null);
   const [activeTypes, setActiveTypes] = useState(new Set());
   const navigate = useNavigate();
+  const documentBlocks = useMemo(
+    () =>
+      Array.isArray(preprocessResult?.blocks) ? preprocessResult.blocks : [],
+    [preprocessResult]
+  );
+  const blockMap = useMemo(
+    () => new Map(documentBlocks.map((block) => [block.blockId, block])),
+    [documentBlocks]
+  );
+  const viewerClauses = useMemo(() => {
+    if (!Array.isArray(clauses)) return [];
 
-  const normalizedSegments = useMemo(() => {
-    if (segments?.length) return segments;
-    return segmentText(parsedText || "");
-  }, [segments, parsedText]);
+    const clausesWithBlocks = clauses.filter(
+      (clause) =>
+        typeof clause?.blockId === "string" && blockMap.has(clause.blockId)
+    );
+
+    return clausesWithBlocks.length ? clausesWithBlocks : clauses;
+  }, [blockMap, clauses]);
 
   const clauseTypes = useMemo(() => {
     const unique = Array.from(
-      new Set((clauses || []).map((clause) => clause.type).filter(Boolean))
+      new Set(viewerClauses.map((clause) => clause.type).filter(Boolean))
     );
     return unique.length ? unique : DEFAULT_CLAUSE_TYPES;
-  }, [clauses]);
+  }, [viewerClauses]);
 
   const clauseCounts = useMemo(() => {
     const counts = {};
-    (clauses || []).forEach((clause) => {
+    viewerClauses.forEach((clause) => {
       counts[clause.type] = (counts[clause.type] || 0) + 1;
     });
     return counts;
-  }, [clauses]);
+  }, [viewerClauses]);
 
-  const citationsMap = useMemo(() => {
+  const clauseIndexByBlockId = useMemo(() => {
     const map = new Map();
-    (clauses || []).forEach((clause, index) => {
-      const ids = Array.isArray(clause?.citations) ? clause.citations : [];
-      ids.forEach((id) => {
-        if (!map.has(id)) map.set(id, []);
-        map.get(id).push(index);
-      });
+    viewerClauses.forEach((clause, index) => {
+      if (
+        typeof clause?.blockId === "string" &&
+        activeTypes.has(clause.type) &&
+        !map.has(clause.blockId)
+      ) {
+        map.set(clause.blockId, index);
+      }
     });
     return map;
-  }, [clauses]);
+  }, [activeTypes, viewerClauses]);
 
   const visibleClauses = useMemo(() => {
-    return (clauses || [])
+    return viewerClauses
       .map((clause, idx) => ({ clause, idx }))
       .filter(({ clause }) => activeTypes.has(clause.type));
-  }, [clauses, activeTypes]);
+  }, [viewerClauses, activeTypes]);
 
   const selectedClause =
-    selectedClauseIndex !== null ? clauses[selectedClauseIndex] : null;
-  const selectedCitations = useMemo(() => {
-    if (!selectedClause?.citations?.length) return new Set();
-    return new Set(selectedClause.citations);
-  }, [selectedClause]);
+    selectedClauseIndex !== null ? viewerClauses[selectedClauseIndex] : null;
+  const selectedBlockId = selectedClause?.blockId || null;
 
-  const scrollToSegment = useCallback((id) => {
-    const el = document.querySelector(`[data-seg-id="${id}"]`);
+  const scrollToBlock = useCallback((blockId) => {
+    if (!blockId) return;
+    const el = document.querySelector(`[data-block-id="${blockId}"]`);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     window.scrollBy(0, -80);
@@ -87,12 +117,21 @@ export default function ViewerPage() {
   const selectClause = useCallback(
     (index) => {
       setSelectedClauseIndex(index);
-      const clause = clauses[index];
-      if (clause?.citations?.length) {
-        scrollToSegment(clause.citations[0]);
+      const clause = viewerClauses[index];
+      if (clause?.blockId) {
+        scrollToBlock(clause.blockId);
       }
     },
-    [clauses, scrollToSegment]
+    [scrollToBlock, viewerClauses]
+  );
+
+  const selectBlock = useCallback(
+    (blockId) => {
+      const clauseIndex = clauseIndexByBlockId.get(blockId);
+      if (clauseIndex === undefined) return;
+      setSelectedClauseIndex(clauseIndex);
+    },
+    [clauseIndexByBlockId]
   );
 
   const toggleType = useCallback((type) => {
@@ -121,22 +160,24 @@ export default function ViewerPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isHydrated && !parsedText) navigate("/analyze");
-  }, [isHydrated, parsedText, navigate]);
+    if (isHydrated && !documentBlocks.length) {
+      navigate("/analyze");
+    }
+  }, [documentBlocks.length, isHydrated, navigate]);
 
   useEffect(() => {
     setSelectedClauseIndex(null);
-  }, [parsedText]);
+  }, [preprocessResult]);
 
   useEffect(() => {
     if (selectedClauseIndex === null) return;
-    const clause = clauses[selectedClauseIndex];
+    const clause = viewerClauses[selectedClauseIndex];
     if (!clause || !activeTypes.has(clause.type)) {
       setSelectedClauseIndex(null);
     }
-  }, [activeTypes, clauses, selectedClauseIndex]);
+  }, [activeTypes, selectedClauseIndex, viewerClauses]);
 
-  if (!parsedText) return null;
+  if (!documentBlocks.length) return null;
 
   return (
     <main
@@ -147,16 +188,15 @@ export default function ViewerPage() {
         <div className="flex items-center justify-center h-screen text-slate-500 dark:text-slate-400">
           <p className="animate-pulse">Restoring session…</p>
         </div>
-      ) : !parsedText ? null : (
+      ) : !documentBlocks.length ? null : (
         <Container className="max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] py-6 space-y-6">
           <HeaderBar
             fileName={uploadedFile?.name}
             resetAnalysis={resetAnalysis}
             navigate={navigate}
-            clauses={clauses}
+            blocks={documentBlocks}
+            clauses={viewerClauses}
             summary={summary}
-            parsedText={parsedText}
-            segments={normalizedSegments}
             setToast={setToast}
           />
 
@@ -170,44 +210,41 @@ export default function ViewerPage() {
             <section
               className="lg:col-span-2 p-4 rounded-md dark:border-slate-700 border border-slate-200
              dark:bg-slate-800 overflow-y-auto max-h-[85vh]"
-              aria-label="Contract Text Viewer"
+              aria-label="Document Block Viewer"
             >
-              <div className="space-y-3 text-left leading-relaxed">
-                {normalizedSegments.map((segment) => {
-                  const clauseIndexes = citationsMap.get(segment.id) || [];
-                  const activeIndexes = clauseIndexes.filter((idx) =>
-                    activeTypes.has(clauses[idx]?.type)
+              <div className="space-y-4 text-left">
+                {documentBlocks.map((block) => {
+                  const linkedClauseIndex = clauseIndexByBlockId.get(
+                    block.blockId
                   );
-                  const highlightIndex = activeIndexes[0];
-                  const highlightClause =
-                    highlightIndex !== undefined
-                      ? clauses[highlightIndex]
+                  const linkedClause =
+                    linkedClauseIndex !== undefined
+                      ? viewerClauses[linkedClauseIndex]
                       : null;
-                  const isHighlighted = Boolean(highlightClause);
-                  const colors = isHighlighted
-                    ? getClauseColor(highlightClause.type)
+                  const isInteractive = Boolean(linkedClause);
+                  const isSelected = selectedBlockId === block.blockId;
+                  const colors = linkedClause
+                    ? getClauseColor(linkedClause.type)
                     : null;
-                  const isSelected = selectedCitations.has(segment.id);
+                  const blockBodyText = getBlockBodyText(block);
 
                   return (
-                    <p
-                      key={segment.id}
-                      data-seg-id={segment.id}
-                      role={isHighlighted ? "button" : undefined}
-                      tabIndex={isHighlighted ? 0 : -1}
-                      className={`rounded-md border-l-4 px-3 py-2 transition-shadow outline-none
-                        ${
-                          isHighlighted
-                            ? "cursor-pointer"
-                            : "border-transparent"
-                        }
-                        ${
-                          isSelected
-                            ? "ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800"
-                            : ""
-                        }`}
+                    <article
+                      key={block.blockId}
+                      data-block-id={block.blockId}
+                      role={isInteractive ? "button" : undefined}
+                      tabIndex={isInteractive ? 0 : -1}
+                      className={`min-w-0 rounded-2xl border px-5 py-4 transition-all outline-none ${
+                        isInteractive
+                          ? "cursor-pointer shadow-sm"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      } ${
+                        isSelected
+                          ? "ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800"
+                          : ""
+                      }`}
                       style={
-                        isHighlighted
+                        linkedClause
                           ? {
                               backgroundColor: colors.bg,
                               color: colors.text,
@@ -215,24 +252,24 @@ export default function ViewerPage() {
                             }
                           : undefined
                       }
-                      onClick={() => {
-                        if (!clauseIndexes.length) return;
-                        const match = activeIndexes[0] ?? clauseIndexes[0];
-                        if (match !== undefined) selectClause(match);
-                      }}
+                      onClick={() => selectBlock(block.blockId)}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter" && event.key !== " ") return;
-                        if (!clauseIndexes.length) return;
                         event.preventDefault();
-                        const match = activeIndexes[0] ?? clauseIndexes[0];
-                        if (match !== undefined) selectClause(match);
+                        selectBlock(block.blockId);
                       }}
                     >
-                      <span className="text-xs text-slate-500 mr-2 select-none">
-                        [{segment.id}]
-                      </span>
-                      {segment.text}
-                    </p>
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold leading-7">
+                          {block.sectionLabel}
+                        </h3>
+                        {blockBodyText ? (
+                          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-base leading-8">
+                            {blockBodyText}
+                          </p>
+                        ) : null}
+                      </div>
+                    </article>
                   );
                 })}
               </div>
@@ -246,7 +283,7 @@ export default function ViewerPage() {
               <div>
                 <h2 className="font-semibold text-lg">Insights</h2>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Clause types, risks, and citations.
+                  Clause types, risks, and linked block analysis.
                 </p>
               </div>
 
@@ -302,26 +339,6 @@ export default function ViewerPage() {
                         <p className="mt-2 text-slate-600 dark:text-slate-300">
                           {clause.explanation || "No explanation provided."}
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {clause.citations?.length ? (
-                            clause.citations.map((id) => (
-                              <button
-                                key={`${clause.type}-${idx}-${id}`}
-                                className="text-xs px-2 py-1 rounded-md border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  scrollToSegment(id);
-                                }}
-                              >
-                                Line {id}
-                              </button>
-                            ))
-                          ) : (
-                            <span className="text-xs text-slate-500">
-                              No citations
-                            </span>
-                          )}
-                        </div>
                       </div>
                     );
                   })}
@@ -331,6 +348,13 @@ export default function ViewerPage() {
                   {(clauses || []).length
                     ? "No clauses for the selected filters. Review the summary below."
                     : "No clauses found. Review the summary below."}
+                </p>
+              )}
+
+              {!viewerClauses.length && clauses.length > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Stored analysis data is missing block linkage. Re-run analysis
+                  from the upload flow to use the new block-based viewer.
                 </p>
               )}
 
