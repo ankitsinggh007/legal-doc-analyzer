@@ -37,7 +37,7 @@ export default function SuccessCard({ result, onReset, onView }) {
           onClick={onReset}
           className="text-indigo-600 hover:underline text-sm"
         >
-          Upload Again
+          Upload another document
         </button>
       </div>
     </div>

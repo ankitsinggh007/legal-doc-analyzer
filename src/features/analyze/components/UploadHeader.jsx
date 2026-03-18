@@ -4,9 +4,13 @@ export default function UploadHeader() {
       <h1 className="text-2xl sm:text-3xl font-semibold mb-2">
         Upload your contract
       </h1>
-      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-        Supports PDF, DOCX, and TXT up to 2 MB
-      </p>
+      <div className="space-y-1 text-sm sm:text-base text-slate-600 dark:text-slate-400">
+        <p>Supports PDF, DOCX, and TXT up to 2 MB.</p>
+        <p>
+          Best with digitally generated, structured agreements such as NDAs,
+          service agreements, consulting agreements, and rental agreements.
+        </p>
+      </div>
     </header>
   );
 }

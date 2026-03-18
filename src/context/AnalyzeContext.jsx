@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { saveState, loadState, clearState } from "@/utils/storage";
+import { createPreprocessResult } from "@/lib/document-processing/preprocessResult";
 import PropTypes from "prop-types";
 
 const STORAGE_KEY = "legalDocAnalyzerState";
@@ -10,6 +11,7 @@ export const AnalyzeProvider = ({ children }) => {
   const [parsedText, setParsedText] = useState(null);
   const [segments, setSegments] = useState([]);
   const [warning, setWarning] = useState(null);
+  const [preprocessResult, setPreprocessResult] = useState(null);
   const [clauses, setClauses] = useState([]);
   const [summary, setSummary] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -22,6 +24,11 @@ export const AnalyzeProvider = ({ children }) => {
       setParsedText(saved.parsedText);
       setSegments(saved.segments || []);
       setWarning(saved.warning);
+      setPreprocessResult(
+        saved.preprocessResult
+          ? createPreprocessResult(saved.preprocessResult)
+          : null
+      );
       setClauses(saved.clauses || []);
       setSummary(saved.summary || "");
     }
@@ -45,11 +52,20 @@ export const AnalyzeProvider = ({ children }) => {
         parsedText,
         segments,
         warning,
+        preprocessResult,
         clauses,
         summary,
       });
     }
-  }, [uploadedFile, parsedText, segments, warning, clauses, summary]);
+  }, [
+    uploadedFile,
+    parsedText,
+    segments,
+    warning,
+    preprocessResult,
+    clauses,
+    summary,
+  ]);
 
   // ✅ Reset + clear
   const resetAnalysis = () => {
@@ -57,6 +73,7 @@ export const AnalyzeProvider = ({ children }) => {
     setParsedText(null);
     setSegments([]);
     setWarning(null);
+    setPreprocessResult(null);
     setClauses([]);
     setSummary("");
     clearState(STORAGE_KEY);
@@ -69,6 +86,7 @@ export const AnalyzeProvider = ({ children }) => {
         parsedText,
         segments,
         warning,
+        preprocessResult,
         clauses,
         summary,
         isHydrated,
@@ -77,6 +95,7 @@ export const AnalyzeProvider = ({ children }) => {
         setUploadedFile,
         setParsedText,
         setSegments,
+        setPreprocessResult,
         resetAnalysis,
         setWarning,
       }}

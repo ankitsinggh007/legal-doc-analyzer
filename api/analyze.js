@@ -3,6 +3,10 @@
 import { MAX_CHARS, RATE_LIMIT_MAX } from "../server/constants.js";
 import { json, readJson } from "../server/http.js";
 import { normalizeOutput } from "../server/normalize.js";
+import {
+  buildAnalyzeBlocksPrompt,
+  buildAnalyzeBlocksRetryPrompt,
+} from "../server/prompts/analyzeBlocksPrompt.js";
 import { checkRateLimit } from "../server/rateLimit.js";
 import { verifyTurnstile } from "../server/turnstile.js";
 
@@ -19,27 +23,37 @@ export default async function handler(req, res) {
     return json(res, 400, { error: "Missing Turnstile token." });
   }
 
-  const rawSegments = Array.isArray(body.segments) ? body.segments : null;
-  const hasSegments = rawSegments && rawSegments.length > 0;
-  const text =
-    typeof body.text === "string" ? body.text.trim() : hasSegments ? "" : "";
+  const documentId =
+    typeof body.documentId === "string" ? body.documentId.trim() : "";
+  const rawBlocks = Array.isArray(body.blocks) ? body.blocks : [];
 
-  if (!text && !hasSegments) {
-    return json(res, 400, { error: "Missing contract text." });
+  if (!documentId) {
+    return json(res, 400, { error: "Missing document ID." });
   }
 
-  const segments = hasSegments
-    ? rawSegments
-        .map((seg) => ({
-          id: seg?.id,
-          text: typeof seg?.text === "string" ? seg.text.trim() : "",
-        }))
-        .filter((seg) => seg.text)
-    : [];
+  const blocks = rawBlocks
+    .map((block) => ({
+      blockId: typeof block?.blockId === "string" ? block.blockId.trim() : "",
+      sectionLabel:
+        typeof block?.sectionLabel === "string"
+          ? block.sectionLabel.trim()
+          : "",
+      text: typeof block?.text === "string" ? block.text.trim() : "",
+      blockType:
+        typeof block?.blockType === "string" ? block.blockType.trim() : "",
+    }))
+    .filter((block) => block.blockId && block.text);
 
-  const inputText = hasSegments
-    ? segments.map((seg) => `[${seg.id}] ${seg.text}`).join("\n")
-    : text;
+  if (!blocks.length) {
+    return json(res, 400, { error: "Missing document blocks." });
+  }
+
+  const inputText = blocks
+    .map((block) => {
+      const label = block.sectionLabel ? `${block.sectionLabel}\n` : "";
+      return `[${block.blockId}] ${label}${block.text}`;
+    })
+    .join("\n\n");
 
   if (inputText.length > MAX_CHARS) {
     return json(res, 400, {
@@ -86,45 +100,10 @@ export default async function handler(req, res) {
   }
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const prompt = hasSegments
-    ? `Contract text is provided with paragraph IDs in brackets like [12]. Use those IDs in citations.`
-    : `Contract text has no paragraph IDs. Return citations as an empty array for each clause.`;
-
   const systemMessage =
     "You are a legal document analyzer. Return JSON only. Keep outputs concise and factual.";
-
-  const baseUserMessage = `${prompt}
-Return JSON in exactly this shape:
-{
-  "clauses": [
-    {
-      "type": "Termination",
-      "risk": "low|medium|high",
-      "explanation": "...",
-      "citations": [12, 13]
-    }
-  ],
-  "summary": "..."
-}
-Contract text:
-"""${inputText}"""`;
-
-  const retryUserMessage = `${prompt}
-Return JSON in exactly this shape:
-{
-  "clauses": [
-    {
-      "type": "Termination",
-      "risk": "low|medium|high",
-      "explanation": "...",
-      "citations": [12, 13]
-    }
-  ],
-  "summary": "..."
-}
-Limit to the 6 most important clauses. Keep explanations to 1 sentence.
-Contract text:
-"""${inputText}"""`;
+  const baseUserMessage = buildAnalyzeBlocksPrompt(inputText);
+  const allowedBlockIds = blocks.map((block) => block.blockId);
 
   const callOpenAI = async (userMessage) => {
     const requestBody = {
@@ -164,13 +143,34 @@ Contract text:
     }
 
     let choice = aiJson?.choices?.[0];
+    let retryReason = "";
+
     if (choice?.finish_reason === "length") {
-      ({ aiRes, aiJson } = await callOpenAI(retryUserMessage));
+      retryReason = "Model output was truncated.";
+    } else {
+      const raw = choice?.message?.content?.trim();
+      const normalized = normalizeOutput(raw || "", {
+        documentId,
+        allowedBlockIds,
+      });
+
+      if (!normalized.validationError) {
+        return json(res, 200, normalized);
+      }
+
+      retryReason = normalized.validationError;
+    }
+
+    if (retryReason) {
+      ({ aiRes, aiJson } = await callOpenAI(
+        buildAnalyzeBlocksRetryPrompt(inputText, retryReason)
+      ));
       if (!aiRes.ok) {
         const msg = aiJson?.error?.message || "OpenAI request failed.";
         return json(res, 502, { error: msg });
       }
       choice = aiJson?.choices?.[0];
+
       if (choice?.finish_reason === "length") {
         return json(res, 502, {
           error:
@@ -180,7 +180,17 @@ Contract text:
     }
 
     const raw = choice?.message?.content?.trim();
-    const normalized = normalizeOutput(raw || "");
+    const normalized = normalizeOutput(raw || "", {
+      documentId,
+      allowedBlockIds,
+    });
+
+    if (normalized.validationError) {
+      return json(res, 502, {
+        error: "Model returned an invalid analysis response. Please try again.",
+      });
+    }
+
     return json(res, 200, normalized);
   } catch (err) {
     return json(res, 500, { error: err.message || "Unknown server error." });

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "test:corpus": "node --test tests/corpus/preprocess.test.mjs",
+    "corpus:report": "node tests/corpus/report.mjs",
     "preview": "vite preview",
     "prepare": "husky"
   },

@@ -38,6 +38,7 @@ async function parsePDF(file) {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
     let text = "";
+    const pages = [];
     let nonTextFound = false;
 
     for (let i = 1; i <= pdf.numPages; i++) {
@@ -46,16 +47,36 @@ async function parsePDF(file) {
 
       if (!content.items.length) nonTextFound = true;
 
-      const pageText = content.items
-        .map((item) => item.str || "")
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
+      const pageLines = [];
+      let currentLine = "";
 
-      text += pageText + "\n";
+      for (const item of content.items) {
+        const value = (item.str || "").replace(/\s+/g, " ").trim();
+
+        if (value) {
+          currentLine = currentLine ? `${currentLine} ${value}` : value;
+        }
+
+        if (item.hasEOL && currentLine) {
+          pageLines.push(currentLine.trim());
+          currentLine = "";
+        }
+      }
+
+      if (currentLine) {
+        pageLines.push(currentLine.trim());
+      }
+
+      const pageText = pageLines
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      pages.push(pageText);
+
+      text += (text ? "\n\n" : "") + pageText;
     }
 
-    text = text.replace(/\n{2,}/g, "\n").trim();
+    text = text.replace(/\n{3,}/g, "\n\n").trim();
 
     if (!text) throw new Error("This PDF seems image-based or empty.");
     if (text.length > MAX_DOC_CHARS) {
@@ -71,7 +92,7 @@ async function parsePDF(file) {
 
     if (warning) console.warn(`[parseDocument] ${warning}`);
 
-    return { text, warning };
+    return { text, warning, pages };
   } catch (err) {
     throw new Error("Failed to parse PDF: " + err.message);
   }
@@ -89,8 +110,11 @@ async function parseDOCX(file) {
     });
 
     const text = html
+      .replace(/<(\/)?(p|div|br|li|h[1-6])[^>]*>/gi, "\n")
       .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
       .trim();
 
     if (!text) throw new Error("This DOCX file seems empty or unreadable.");
@@ -108,7 +132,7 @@ async function parseDOCX(file) {
 
     if (warning) console.warn(`[parseDocument] ${warning}`);
 
-    return { text, warning };
+    return { text, warning, pages: [text] };
   } catch (err) {
     throw new Error("Failed to parse DOCX: " + err.message);
   }
@@ -129,7 +153,7 @@ function parseTXT(file) {
               "en-US"
             )}-character processing limit.`
           );
-        } else resolve({ text, warning: null });
+        } else resolve({ text, warning: null, pages: [text] });
       };
       reader.onerror = () => reject(new Error("Failed to read TXT file."));
       reader.readAsText(file, "utf-8");
