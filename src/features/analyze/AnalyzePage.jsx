@@ -8,7 +8,6 @@ import { Container } from "../../components/layout/Container";
 import UploadHeader from "./components/UploadHeader";
 import DropzoneCard from "./components/DropzoneCard";
 import LoadingCard from "./components/LoadingCard";
-import SuccessCard from "./components/SuccessCard";
 import ErrorCard from "./components/ErrorCard"; //
 import PreprocessPreviewCard from "./components/PreprocessPreviewCard";
 import parseDocument from "../../utils/parseDocument";
@@ -28,7 +27,6 @@ function mergeWarnings(...messages) {
 
 export default function AnalyzePage() {
   const [status, setStatus] = useState("idle");
-  const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [errorPhase, setErrorPhase] = useState(null);
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -49,7 +47,6 @@ export default function AnalyzePage() {
     warning,
     parsedText,
     preprocessResult,
-    clauses,
   } = useAnalyze();
 
   const useMock = import.meta.env.VITE_USE_MOCK_ANALYZER === "true";
@@ -61,15 +58,10 @@ export default function AnalyzePage() {
     (status === "ready" || (status === "error" && errorPhase === "analysis"));
 
   useEffect(() => {
-    if (!preprocessResult) return;
-    if (clauses?.length && result) {
-      setStatus("success");
-      return;
-    }
-    if (parsedText) {
+    if (status === "idle" && preprocessResult && parsedText) {
       setStatus("ready");
     }
-  }, [clauses, parsedText, preprocessResult, result]);
+  }, [parsedText, preprocessResult, status]);
 
   useEffect(() => {
     if (!requiresTurnstile) return;
@@ -174,11 +166,6 @@ export default function AnalyzePage() {
       setParsedText(text);
       setWarning(nextWarning || null);
       setPreprocessResult(nextPreprocessResult);
-      setResult({
-        filename: file.name,
-        size: (file.size / 1024 / 1024).toFixed(2),
-        blockCount: nextPreprocessResult.blocks.length,
-      });
       setStatus("ready");
     } catch (err) {
       if (turnstileWidgetId.current && window.turnstile?.reset) {
@@ -204,16 +191,11 @@ export default function AnalyzePage() {
         documentId: preprocessResult?.documentId,
         blocks: preprocessResult?.blocks || [],
       });
-      setResult({
-        filename: lastFile.name,
-        size: (lastFile.size / 1024 / 1024).toFixed(2),
-        blockCount: preprocessResult?.blocks?.length || 0,
-      });
-      setStatus("success");
       if (turnstileWidgetId.current && window.turnstile?.reset) {
         window.turnstile.reset(turnstileWidgetId.current);
       }
       setTurnstileToken("");
+      navigate("/viewer");
     } catch (err) {
       if (turnstileWidgetId.current && window.turnstile?.reset) {
         window.turnstile.reset(turnstileWidgetId.current);
@@ -228,7 +210,6 @@ export default function AnalyzePage() {
   const reset = () => {
     resetAnalysis();
     setStatus("idle");
-    setResult(null);
     setErrorMsg("");
     setErrorPhase(null);
     setTurnstileError("");
@@ -284,13 +265,6 @@ export default function AnalyzePage() {
             <LoadingCard
               title="Analyzing extracted blocks…"
               message="Sending preprocessed content for AI classification."
-            />
-          )}
-          {status === "success" && (
-            <SuccessCard
-              result={result}
-              onReset={reset}
-              onView={() => navigate("/viewer")}
             />
           )}
           {status === "error" && (

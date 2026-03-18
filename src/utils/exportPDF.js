@@ -120,9 +120,14 @@ export async function exportPDF({
           background: #ffffff;
           word-wrap: break-word;
           overflow-wrap: break-word;
+          padding-bottom: 24px;
         }
         h1, h2 { font-weight: 600; margin-bottom: 6px; }
-        .section { margin-top: 20px; page-break-inside: avoid; }
+        .section {
+          margin-top: 20px;
+          padding-bottom: 10px;
+          page-break-inside: avoid;
+        }
         .block {
           padding: 12px 14px;
           border-radius: 12px;
@@ -140,7 +145,24 @@ export async function exportPDF({
         .clause-item { margin-bottom: 12px; page-break-inside: avoid; }
         .clause-title { display: flex; align-items: center; gap: 8px; }
         .clause-text { margin-top: 6px; }
-        .risk-pill { font-size: 11px; padding: 2px 6px; border-radius: 999px; }
+        .risk-pill {
+          display: inline-block;
+          height: 22px;
+          line-height: 20px;
+          box-sizing: border-box;
+          vertical-align: middle;
+          text-align: center;
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 0 10px;
+          border-radius: 999px;
+        }
+        .summary-text {
+          margin-top: 8px;
+          line-height: 1.7;
+          padding-bottom: 8px;
+        }
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
         * { page-break-inside: avoid; }
         p, div { page-break-inside: auto; }
@@ -168,7 +190,7 @@ export async function exportPDF({
             .map(([type, count]) => `${count} ${type}`)
             .join(", ") || "No clauses"
         }.</p>
-        <p style="margin-top:8px;">${
+        <p class="summary-text">${
           summary ? escapeHtml(summary) : "No summary available."
         }</p>
       </div>
