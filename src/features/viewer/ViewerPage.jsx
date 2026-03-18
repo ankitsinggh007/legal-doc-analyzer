@@ -5,7 +5,6 @@ import { Container } from "@/components/layout/Container";
 import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
 import { lazy, Suspense } from "react";
 import { HeaderBar } from "./components/HeaderBar";
-import { segmentText } from "@/utils/segmentText";
 import {
   DEFAULT_CLAUSE_TYPES,
   getClauseColor,
@@ -15,6 +14,24 @@ import Disclaimer from "@/components/Disclaimer";
 
 const ColorLegend = lazy(() => import("./components/ColorLegend"));
 const FilterTabs = lazy(() => import("./components/FilterTabs"));
+
+function getBlockBodyText(block) {
+  const sectionLabel = String(block?.sectionLabel || "").trim();
+  const text = String(block?.text || "").trim();
+
+  if (!sectionLabel || !text) {
+    return text;
+  }
+
+  if (!text.startsWith(sectionLabel)) {
+    return text;
+  }
+
+  return text
+    .slice(sectionLabel.length)
+    .replace(/^[\s.:;,-]+/, "")
+    .trim();
+}
 
 export default function ViewerPage() {
   const {
@@ -52,11 +69,6 @@ export default function ViewerPage() {
     return clausesWithBlocks.length ? clausesWithBlocks : clauses;
   }, [blockMap, clauses]);
 
-  const normalizedSegments = useMemo(() => {
-    if (segments?.length) return segments;
-    return segmentText(parsedText || "");
-  }, [segments, parsedText]);
-
   const clauseTypes = useMemo(() => {
     const unique = Array.from(
       new Set(viewerClauses.map((clause) => clause.type).filter(Boolean))
@@ -72,17 +84,19 @@ export default function ViewerPage() {
     return counts;
   }, [viewerClauses]);
 
-  const citationsMap = useMemo(() => {
+  const clauseIndexByBlockId = useMemo(() => {
     const map = new Map();
     viewerClauses.forEach((clause, index) => {
-      const ids = Array.isArray(clause?.citations) ? clause.citations : [];
-      ids.forEach((id) => {
-        if (!map.has(id)) map.set(id, []);
-        map.get(id).push(index);
-      });
+      if (
+        typeof clause?.blockId === "string" &&
+        activeTypes.has(clause.type) &&
+        !map.has(clause.blockId)
+      ) {
+        map.set(clause.blockId, index);
+      }
     });
     return map;
-  }, [viewerClauses]);
+  }, [activeTypes, viewerClauses]);
 
   const visibleClauses = useMemo(() => {
     return viewerClauses
@@ -92,13 +106,11 @@ export default function ViewerPage() {
 
   const selectedClause =
     selectedClauseIndex !== null ? viewerClauses[selectedClauseIndex] : null;
-  const selectedCitations = useMemo(() => {
-    if (!selectedClause?.citations?.length) return new Set();
-    return new Set(selectedClause.citations);
-  }, [selectedClause]);
+  const selectedBlockId = selectedClause?.blockId || null;
 
-  const scrollToSegment = useCallback((id) => {
-    const el = document.querySelector(`[data-seg-id="${id}"]`);
+  const scrollToBlock = useCallback((blockId) => {
+    if (!blockId) return;
+    const el = document.querySelector(`[data-block-id="${blockId}"]`);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     window.scrollBy(0, -80);
@@ -108,11 +120,20 @@ export default function ViewerPage() {
     (index) => {
       setSelectedClauseIndex(index);
       const clause = viewerClauses[index];
-      if (clause?.citations?.length) {
-        scrollToSegment(clause.citations[0]);
+      if (clause?.blockId) {
+        scrollToBlock(clause.blockId);
       }
     },
-    [scrollToSegment, viewerClauses]
+    [scrollToBlock, viewerClauses]
+  );
+
+  const selectBlock = useCallback(
+    (blockId) => {
+      const clauseIndex = clauseIndexByBlockId.get(blockId);
+      if (clauseIndex === undefined) return;
+      setSelectedClauseIndex(clauseIndex);
+    },
+    [clauseIndexByBlockId]
   );
 
   const toggleType = useCallback((type) => {
@@ -148,7 +169,7 @@ export default function ViewerPage() {
 
   useEffect(() => {
     setSelectedClauseIndex(null);
-  }, [parsedText]);
+  }, [parsedText, preprocessResult]);
 
   useEffect(() => {
     if (selectedClauseIndex === null) return;
@@ -158,7 +179,7 @@ export default function ViewerPage() {
     }
   }, [activeTypes, selectedClauseIndex, viewerClauses]);
 
-  if (!parsedText) return null;
+  if (!parsedText || !documentBlocks.length) return null;
 
   return (
     <main
@@ -178,7 +199,7 @@ export default function ViewerPage() {
             clauses={viewerClauses}
             summary={summary}
             parsedText={parsedText}
-            segments={normalizedSegments}
+            segments={segments}
             setToast={setToast}
           />
 
@@ -192,44 +213,41 @@ export default function ViewerPage() {
             <section
               className="lg:col-span-2 p-4 rounded-md dark:border-slate-700 border border-slate-200
              dark:bg-slate-800 overflow-y-auto max-h-[85vh]"
-              aria-label="Contract Text Viewer"
+              aria-label="Document Block Viewer"
             >
-              <div className="space-y-3 text-left leading-relaxed">
-                {normalizedSegments.map((segment) => {
-                  const clauseIndexes = citationsMap.get(segment.id) || [];
-                  const activeIndexes = clauseIndexes.filter((idx) =>
-                    activeTypes.has(viewerClauses[idx]?.type)
+              <div className="space-y-4 text-left">
+                {documentBlocks.map((block) => {
+                  const linkedClauseIndex = clauseIndexByBlockId.get(
+                    block.blockId
                   );
-                  const highlightIndex = activeIndexes[0];
-                  const highlightClause =
-                    highlightIndex !== undefined
-                      ? viewerClauses[highlightIndex]
+                  const linkedClause =
+                    linkedClauseIndex !== undefined
+                      ? viewerClauses[linkedClauseIndex]
                       : null;
-                  const isHighlighted = Boolean(highlightClause);
-                  const colors = isHighlighted
-                    ? getClauseColor(highlightClause.type)
+                  const isInteractive = Boolean(linkedClause);
+                  const isSelected = selectedBlockId === block.blockId;
+                  const colors = linkedClause
+                    ? getClauseColor(linkedClause.type)
                     : null;
-                  const isSelected = selectedCitations.has(segment.id);
+                  const blockBodyText = getBlockBodyText(block);
 
                   return (
-                    <p
-                      key={segment.id}
-                      data-seg-id={segment.id}
-                      role={isHighlighted ? "button" : undefined}
-                      tabIndex={isHighlighted ? 0 : -1}
-                      className={`rounded-md border-l-4 px-3 py-2 transition-shadow outline-none
-                        ${
-                          isHighlighted
-                            ? "cursor-pointer"
-                            : "border-transparent"
-                        }
-                        ${
-                          isSelected
-                            ? "ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800"
-                            : ""
-                        }`}
+                    <article
+                      key={block.blockId}
+                      data-block-id={block.blockId}
+                      role={isInteractive ? "button" : undefined}
+                      tabIndex={isInteractive ? 0 : -1}
+                      className={`rounded-2xl border px-5 py-4 transition-all outline-none ${
+                        isInteractive
+                          ? "cursor-pointer shadow-sm"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      } ${
+                        isSelected
+                          ? "ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800"
+                          : ""
+                      }`}
                       style={
-                        isHighlighted
+                        linkedClause
                           ? {
                               backgroundColor: colors.bg,
                               color: colors.text,
@@ -237,24 +255,24 @@ export default function ViewerPage() {
                             }
                           : undefined
                       }
-                      onClick={() => {
-                        if (!clauseIndexes.length) return;
-                        const match = activeIndexes[0] ?? clauseIndexes[0];
-                        if (match !== undefined) selectClause(match);
-                      }}
+                      onClick={() => selectBlock(block.blockId)}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter" && event.key !== " ") return;
-                        if (!clauseIndexes.length) return;
                         event.preventDefault();
-                        const match = activeIndexes[0] ?? clauseIndexes[0];
-                        if (match !== undefined) selectClause(match);
+                        selectBlock(block.blockId);
                       }}
                     >
-                      <span className="text-xs text-slate-500 mr-2 select-none">
-                        [{segment.id}]
-                      </span>
-                      {segment.text}
-                    </p>
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-semibold leading-7">
+                          {block.sectionLabel}
+                        </h3>
+                        {blockBodyText ? (
+                          <p className="whitespace-pre-wrap text-base leading-8">
+                            {blockBodyText}
+                          </p>
+                        ) : null}
+                      </div>
+                    </article>
                   );
                 })}
               </div>
@@ -268,7 +286,7 @@ export default function ViewerPage() {
               <div>
                 <h2 className="font-semibold text-lg">Insights</h2>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Clause types, risks, and citations.
+                  Clause types, risks, and linked block analysis.
                 </p>
               </div>
 
@@ -324,26 +342,6 @@ export default function ViewerPage() {
                         <p className="mt-2 text-slate-600 dark:text-slate-300">
                           {clause.explanation || "No explanation provided."}
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {clause.citations?.length ? (
-                            clause.citations.map((id) => (
-                              <button
-                                key={`${clause.type}-${idx}-${id}`}
-                                className="text-xs px-2 py-1 rounded-md border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  scrollToSegment(id);
-                                }}
-                              >
-                                Line {id}
-                              </button>
-                            ))
-                          ) : (
-                            <span className="text-xs text-slate-500">
-                              No citations
-                            </span>
-                          )}
-                        </div>
                       </div>
                     );
                   })}
