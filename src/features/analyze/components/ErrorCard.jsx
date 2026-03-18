@@ -28,7 +28,7 @@ export default function ErrorCard({ message, onRetry, onReset }) {
             onRetry ? "mt-3" : "mt-4"
           }`}
         >
-          Upload Again
+          Upload another document
         </button>
       )}
     </div>

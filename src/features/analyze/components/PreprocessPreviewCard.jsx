@@ -90,10 +90,16 @@ export default function PreprocessPreviewCard({
           </h4>
           {blockCount > visibleBlocks.length && (
             <span className="text-xs text-slate-500">
-              Showing first {visibleBlocks.length} of {blockCount}
+              Previewing first {visibleBlocks.length} of {blockCount}
             </span>
           )}
         </div>
+        {blockCount > visibleBlocks.length && (
+          <p className="text-xs text-slate-500">
+            Only a preview is shown here. Review the visible blocks, then
+            continue if they look clause-like.
+          </p>
+        )}
 
         <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
           {visibleBlocks.map((block) => (

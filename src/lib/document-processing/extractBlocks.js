@@ -173,6 +173,55 @@ function splitInlineClauseStart(line) {
   return { sectionLabel: normalized, inlineBodyText: "" };
 }
 
+function isMeaningfulOverlap(overlap) {
+  const normalized = normalizeLine(overlap);
+  return normalized.length >= 8;
+}
+
+function joinLabelAndText(sectionLabel, text) {
+  if (!sectionLabel) return text;
+  if (!text) return sectionLabel;
+
+  if (/[.:;!?]$/.test(sectionLabel)) {
+    return `${sectionLabel} ${text}`.trim();
+  }
+
+  return `${sectionLabel}. ${text}`.trim();
+}
+
+// Keep text semantically complete without blindly duplicating the clause start.
+// We only prepend the missing part of the label when the extracted text does not
+// already carry that context.
+function mergeSectionLabelIntoText(sectionLabel, text) {
+  const normalizedLabel = normalizeLine(sectionLabel);
+  const normalizedText = normalizeLine(text);
+
+  if (!normalizedLabel) return normalizedText;
+  if (!normalizedText) return normalizedLabel;
+
+  if (normalizedText.startsWith(normalizedLabel)) {
+    return normalizedText;
+  }
+
+  const maxOverlapLength = Math.min(
+    normalizedLabel.length,
+    normalizedText.length
+  );
+
+  for (let length = maxOverlapLength; length > 0; length -= 1) {
+    const overlap = normalizedLabel.slice(-length);
+
+    if (normalizedText.startsWith(overlap) && isMeaningfulOverlap(overlap)) {
+      const missingPrefix = normalizedLabel
+        .slice(0, normalizedLabel.length - length)
+        .trimEnd();
+      return joinLabelAndText(missingPrefix, normalizedText);
+    }
+  }
+
+  return joinLabelAndText(normalizedLabel, normalizedText);
+}
+
 function findTopLevelStart(lines, startIndex) {
   const current = lines[startIndex];
   if (!current) return null;
@@ -255,6 +304,11 @@ function collectBlockText(
     const line = lines[i];
     if (!line?.text) continue;
 
+    if (bodyStarted) {
+      if (i === startLineIndex) continue;
+      if (mergedUntil !== undefined && i === mergedUntil) continue;
+    }
+
     if (!bodyStarted) {
       if (i === startLineIndex) continue;
       if (mergedUntil !== undefined && i === mergedUntil) continue;
@@ -264,7 +318,10 @@ function collectBlockText(
     blockLines.push(line.text);
   }
 
-  const text = blockLines.join(" ").replace(/\s+/g, " ").trim();
+  const text = mergeSectionLabelIntoText(
+    label,
+    blockLines.join(" ").replace(/\s+/g, " ").trim()
+  );
 
   return {
     sectionLabel: label,
