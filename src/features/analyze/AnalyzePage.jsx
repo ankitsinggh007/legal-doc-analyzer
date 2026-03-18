@@ -272,11 +272,14 @@ export default function AnalyzePage() {
           {status === "idle" && (
             <DropzoneCard onFileAccepted={handleFileAccepted} />
           )}
-          {warning && status !== "error" && (
-            <p className="text-amber-600 text-sm" role="status">
-              {warning}
-            </p>
-          )}
+          {warning &&
+            preprocessResult &&
+            status !== "idle" &&
+            status !== "error" && (
+              <p className="text-amber-600 text-sm" role="status">
+                {warning}
+              </p>
+            )}
           {status === "preprocessing" && (
             <LoadingCard
               title="Preprocessing document…"
