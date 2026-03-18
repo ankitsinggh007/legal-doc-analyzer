@@ -29,7 +29,7 @@ export default function HomePage() {
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-400 max-w-xl mb-8">
           Upload structured agreements, review extracted clause-like blocks, and
-          get AI risk summaries with citations.
+          get AI risk summaries for key clauses.
         </p>
         <button
           ref={getBtn}
