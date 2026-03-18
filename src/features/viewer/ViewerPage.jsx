@@ -36,8 +36,6 @@ function getBlockBodyText(block) {
 export default function ViewerPage() {
   const {
     uploadedFile,
-    parsedText,
-    segments,
     preprocessResult,
     clauses,
     resetAnalysis,
@@ -162,14 +160,14 @@ export default function ViewerPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (isHydrated && (!parsedText || !documentBlocks.length)) {
+    if (isHydrated && !documentBlocks.length) {
       navigate("/analyze");
     }
-  }, [documentBlocks.length, isHydrated, navigate, parsedText]);
+  }, [documentBlocks.length, isHydrated, navigate]);
 
   useEffect(() => {
     setSelectedClauseIndex(null);
-  }, [parsedText, preprocessResult]);
+  }, [preprocessResult]);
 
   useEffect(() => {
     if (selectedClauseIndex === null) return;
@@ -179,7 +177,7 @@ export default function ViewerPage() {
     }
   }, [activeTypes, selectedClauseIndex, viewerClauses]);
 
-  if (!parsedText || !documentBlocks.length) return null;
+  if (!documentBlocks.length) return null;
 
   return (
     <main
@@ -190,16 +188,15 @@ export default function ViewerPage() {
         <div className="flex items-center justify-center h-screen text-slate-500 dark:text-slate-400">
           <p className="animate-pulse">Restoring session…</p>
         </div>
-      ) : !parsedText ? null : (
+      ) : !documentBlocks.length ? null : (
         <Container className="max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] py-6 space-y-6">
           <HeaderBar
             fileName={uploadedFile?.name}
             resetAnalysis={resetAnalysis}
             navigate={navigate}
+            blocks={documentBlocks}
             clauses={viewerClauses}
             summary={summary}
-            parsedText={parsedText}
-            segments={segments}
             setToast={setToast}
           />
 

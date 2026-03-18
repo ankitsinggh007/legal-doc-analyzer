@@ -6,10 +6,9 @@ const HeaderBar = memo(function HeaderBar({
   fileName,
   resetAnalysis,
   navigate,
+  blocks,
   clauses,
   summary,
-  parsedText,
-  segments,
   setToast,
 }) {
   return (
@@ -42,10 +41,9 @@ const HeaderBar = memo(function HeaderBar({
           onClick={() =>
             exportPDF({
               fileName,
+              blocks,
               clauses,
               summary,
-              parsedText,
-              segments,
               setToast,
             })
           }
