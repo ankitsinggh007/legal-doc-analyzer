@@ -10,6 +10,8 @@ import {
 import { checkRateLimit } from "../server/rateLimit.js";
 import { verifyTurnstile } from "../server/turnstile.js";
 
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 25000;
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
@@ -120,17 +122,34 @@ export default async function handler(req, res) {
       ],
     };
 
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
 
-    const aiJson = await aiRes.json().catch(() => ({}));
-    return { aiRes, aiJson };
+    try {
+      const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      const aiJson = await aiRes.json().catch(() => ({}));
+      return { aiRes, aiJson };
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        const timeoutError = new Error(
+          "Analysis request timed out. Please try again."
+        );
+        timeoutError.name = "OpenAITimeoutError";
+        throw timeoutError;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   };
 
   try {
@@ -191,6 +210,9 @@ export default async function handler(req, res) {
 
     return json(res, 200, normalized);
   } catch (err) {
+    if (err?.name === "OpenAITimeoutError") {
+      return json(res, 504, { error: err.message });
+    }
     return json(res, 500, { error: err.message || "Unknown server error." });
   }
 }
