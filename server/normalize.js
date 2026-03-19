@@ -1,12 +1,26 @@
-function normalizeRisk(value) {
-  const v = typeof value === "string" ? value.toLowerCase().trim() : "";
-  if (v === "low" || v === "medium" || v === "high") return v;
+function normalizeString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeRiskLevel(value) {
+  const v = normalizeString(value).toLowerCase();
+  if (v === "none" || v === "low" || v === "medium" || v === "high") {
+    return v;
+  }
   if (v === "med" || v === "mid") return "medium";
   return "";
 }
 
+function normalizeClassification(value) {
+  const v = normalizeString(value).toLowerCase();
+  if (v === "clause_flagged" || v === "clause_no_issue" || v === "noise") {
+    return v;
+  }
+  return "";
+}
+
 function normalizeBlockId(value) {
-  return typeof value === "string" ? value.trim() : "";
+  return normalizeString(value);
 }
 
 export function normalizeOutput(
@@ -61,11 +75,20 @@ export function normalizeOutput(
     }
 
     const blockId = normalizeBlockId(result.blockId);
-    const clauseType =
-      typeof result.clauseType === "string" ? result.clauseType.trim() : "";
-    const explanation =
-      typeof result.explanation === "string" ? result.explanation.trim() : "";
-    const riskFlag = normalizeRisk(result.riskFlag);
+    const rawClauseType = normalizeString(result.clauseType);
+    const explanation = normalizeString(result.explanation);
+    const rawTitle = normalizeString(result.title);
+    const riskLevel = normalizeRiskLevel(result.riskLevel ?? result.riskFlag);
+
+    let classification = normalizeClassification(result.classification);
+    const looksLikeLegacyFlagged =
+      !classification &&
+      rawClauseType &&
+      ["low", "medium", "high"].includes(riskLevel);
+
+    if (looksLikeLegacyFlagged) {
+      classification = "clause_flagged";
+    }
 
     if (!blockId) {
       return {
@@ -94,21 +117,21 @@ export function normalizeOutput(
       };
     }
 
-    if (!clauseType) {
+    if (!classification) {
       return {
         documentId,
         results: [],
         summary: "",
-        validationError: `Model returned an empty clauseType for ${blockId}.`,
+        validationError: `Model returned an invalid classification for ${blockId}.`,
       };
     }
 
-    if (!riskFlag) {
+    if (!riskLevel) {
       return {
         documentId,
         results: [],
         summary: "",
-        validationError: `Model returned an invalid riskFlag for ${blockId}.`,
+        validationError: `Model returned an invalid riskLevel for ${blockId}.`,
       };
     }
 
@@ -121,17 +144,81 @@ export function normalizeOutput(
       };
     }
 
+    let clauseType = rawClauseType;
+    let title = rawTitle;
+
+    if (classification === "clause_flagged") {
+      if (!clauseType) {
+        return {
+          documentId,
+          results: [],
+          summary: "",
+          validationError: `Model returned an empty clauseType for flagged block ${blockId}.`,
+        };
+      }
+
+      if (!["low", "medium", "high"].includes(riskLevel)) {
+        return {
+          documentId,
+          results: [],
+          summary: "",
+          validationError: `Model returned invalid riskLevel "${riskLevel}" for flagged block ${blockId}.`,
+        };
+      }
+
+      if (!title) {
+        if (looksLikeLegacyFlagged) {
+          title = clauseType;
+        } else {
+          return {
+            documentId,
+            results: [],
+            summary: "",
+            validationError: `Model returned an empty title for flagged block ${blockId}.`,
+          };
+        }
+      }
+    }
+
+    if (classification === "clause_no_issue") {
+      if (riskLevel !== "none") {
+        return {
+          documentId,
+          results: [],
+          summary: "",
+          validationError: `Model returned non-none riskLevel for clause_no_issue block ${blockId}.`,
+        };
+      }
+
+      title = "";
+    }
+
+    if (classification === "noise") {
+      if (riskLevel !== "none") {
+        return {
+          documentId,
+          results: [],
+          summary: "",
+          validationError: `Model returned non-none riskLevel for noise block ${blockId}.`,
+        };
+      }
+
+      clauseType = "";
+      title = "";
+    }
+
     seenBlockIds.add(blockId);
     results.push({
       blockId,
+      classification,
       clauseType,
-      riskFlag,
+      riskLevel,
+      title,
       explanation,
     });
   }
 
-  const summary =
-    typeof parsed?.summary === "string" ? parsed.summary.trim() : "";
+  const summary = normalizeString(parsed?.summary);
 
   return { documentId, results, summary };
 }

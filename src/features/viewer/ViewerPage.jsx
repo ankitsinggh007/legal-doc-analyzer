@@ -33,6 +33,31 @@ function getBlockBodyText(block) {
     .trim();
 }
 
+function getBlockTone(blockState) {
+  switch (blockState?.classification) {
+    case "clause_no_issue":
+      return {
+        className:
+          "border-emerald-200 bg-emerald-50/70 text-slate-800 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-slate-100",
+      };
+    case "noise":
+      return {
+        className:
+          "border-dashed border-slate-200 bg-slate-50/70 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
+      };
+    case "unclassified":
+      return {
+        className:
+          "border-amber-200 bg-amber-50/70 text-slate-800 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-slate-100",
+      };
+    default:
+      return {
+        className:
+          "border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
+      };
+  }
+}
+
 export default function ViewerPage() {
   const {
     uploadedFile,
@@ -66,25 +91,32 @@ export default function ViewerPage() {
 
     return clausesWithBlocks.length ? clausesWithBlocks : clauses;
   }, [blockMap, clauses]);
+  const flaggedClauses = useMemo(
+    () =>
+      viewerClauses.filter(
+        (clause) => clause?.classification === "clause_flagged" && clause.type
+      ),
+    [viewerClauses]
+  );
 
   const clauseTypes = useMemo(() => {
     const unique = Array.from(
-      new Set(viewerClauses.map((clause) => clause.type).filter(Boolean))
+      new Set(flaggedClauses.map((clause) => clause.type).filter(Boolean))
     );
     return unique.length ? unique : DEFAULT_CLAUSE_TYPES;
-  }, [viewerClauses]);
+  }, [flaggedClauses]);
 
   const clauseCounts = useMemo(() => {
     const counts = {};
-    viewerClauses.forEach((clause) => {
+    flaggedClauses.forEach((clause) => {
       counts[clause.type] = (counts[clause.type] || 0) + 1;
     });
     return counts;
-  }, [viewerClauses]);
+  }, [flaggedClauses]);
 
   const clauseIndexByBlockId = useMemo(() => {
     const map = new Map();
-    viewerClauses.forEach((clause, index) => {
+    flaggedClauses.forEach((clause, index) => {
       if (
         typeof clause?.blockId === "string" &&
         activeTypes.has(clause.type) &&
@@ -94,16 +126,25 @@ export default function ViewerPage() {
       }
     });
     return map;
-  }, [activeTypes, viewerClauses]);
+  }, [activeTypes, flaggedClauses]);
 
   const visibleClauses = useMemo(() => {
-    return viewerClauses
+    return flaggedClauses
       .map((clause, idx) => ({ clause, idx }))
       .filter(({ clause }) => activeTypes.has(clause.type));
-  }, [viewerClauses, activeTypes]);
+  }, [flaggedClauses, activeTypes]);
+  const blockStateById = useMemo(
+    () =>
+      new Map(
+        viewerClauses
+          .filter((clause) => typeof clause?.blockId === "string")
+          .map((clause) => [clause.blockId, clause])
+      ),
+    [viewerClauses]
+  );
 
   const selectedClause =
-    selectedClauseIndex !== null ? viewerClauses[selectedClauseIndex] : null;
+    selectedClauseIndex !== null ? flaggedClauses[selectedClauseIndex] : null;
   const selectedBlockId = selectedClause?.blockId || null;
 
   const scrollToBlock = useCallback((blockId) => {
@@ -117,12 +158,12 @@ export default function ViewerPage() {
   const selectClause = useCallback(
     (index) => {
       setSelectedClauseIndex(index);
-      const clause = viewerClauses[index];
+      const clause = flaggedClauses[index];
       if (clause?.blockId) {
         scrollToBlock(clause.blockId);
       }
     },
-    [scrollToBlock, viewerClauses]
+    [flaggedClauses, scrollToBlock]
   );
 
   const selectBlock = useCallback(
@@ -171,11 +212,11 @@ export default function ViewerPage() {
 
   useEffect(() => {
     if (selectedClauseIndex === null) return;
-    const clause = viewerClauses[selectedClauseIndex];
+    const clause = flaggedClauses[selectedClauseIndex];
     if (!clause || !activeTypes.has(clause.type)) {
       setSelectedClauseIndex(null);
     }
-  }, [activeTypes, selectedClauseIndex, viewerClauses]);
+  }, [activeTypes, flaggedClauses, selectedClauseIndex]);
 
   if (!documentBlocks.length) return null;
 
@@ -195,7 +236,7 @@ export default function ViewerPage() {
             resetAnalysis={resetAnalysis}
             navigate={navigate}
             blocks={documentBlocks}
-            clauses={viewerClauses}
+            clauses={flaggedClauses}
             summary={summary}
             setToast={setToast}
           />
@@ -214,6 +255,16 @@ export default function ViewerPage() {
             >
               <div className="space-y-4 text-left">
                 {documentBlocks.map((block) => {
+                  const blockState = blockStateById.get(block.blockId) || {
+                    blockId: block.blockId,
+                    classification: "unclassified",
+                    clauseType: "",
+                    risk: "none",
+                    riskLevel: "none",
+                    title: "",
+                    explanation:
+                      "Could not classify this block. Verify manually.",
+                  };
                   const linkedClauseIndex = clauseIndexByBlockId.get(
                     block.blockId
                   );
@@ -221,30 +272,42 @@ export default function ViewerPage() {
                     linkedClauseIndex !== undefined
                       ? viewerClauses[linkedClauseIndex]
                       : null;
-                  const isInteractive = Boolean(linkedClause);
+                  const isFlagged =
+                    blockState.classification === "clause_flagged";
+                  const isInteractive = isFlagged && Boolean(linkedClause);
                   const isSelected = selectedBlockId === block.blockId;
-                  const colors = linkedClause
-                    ? getClauseColor(linkedClause.type)
+                  const colors = isFlagged
+                    ? getClauseColor(
+                        linkedClause?.type || blockState.type || "Other"
+                      )
                     : null;
+                  const tone = getBlockTone(blockState);
                   const blockBodyText = getBlockBodyText(block);
+                  const statusLabel =
+                    blockState.classification === "clause_no_issue"
+                      ? "No notable issue detected"
+                      : blockState.classification === "noise"
+                        ? "No clause detected"
+                        : blockState.classification === "unclassified"
+                          ? "Could not classify. Verify manually"
+                          : "";
 
                   return (
                     <article
                       key={block.blockId}
                       data-block-id={block.blockId}
+                      data-block-classification={blockState.classification}
                       role={isInteractive ? "button" : undefined}
                       tabIndex={isInteractive ? 0 : -1}
-                      className={`min-w-0 rounded-2xl border px-5 py-4 transition-all outline-none ${
-                        isInteractive
-                          ? "cursor-pointer shadow-sm"
-                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      className={`min-w-0 rounded-2xl border px-5 py-4 transition-all outline-none ${tone.className} ${
+                        isInteractive ? "cursor-pointer shadow-sm" : ""
                       } ${
                         isSelected
                           ? "ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800"
                           : ""
                       }`}
                       style={
-                        linkedClause
+                        isFlagged
                           ? {
                               backgroundColor: colors.bg,
                               color: colors.text,
@@ -260,6 +323,13 @@ export default function ViewerPage() {
                       }}
                     >
                       <div className="space-y-3">
+                        {statusLabel ? (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex items-center rounded-full border border-current/20 bg-white/60 px-2.5 py-1 text-xs font-medium dark:bg-slate-900/40">
+                              {statusLabel}
+                            </span>
+                          </div>
+                        ) : null}
                         <h3 className="text-lg font-semibold leading-7">
                           {block.sectionLabel}
                         </h3>
@@ -283,7 +353,7 @@ export default function ViewerPage() {
               <div>
                 <h2 className="font-semibold text-lg">Insights</h2>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Clause types, risks, and linked block analysis.
+                  Flagged clauses, risks, and linked block analysis.
                 </p>
               </div>
 
@@ -345,9 +415,9 @@ export default function ViewerPage() {
                 </div>
               ) : (
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {(clauses || []).length
-                    ? "No clauses for the selected filters. Review the summary below."
-                    : "No clauses found. Review the summary below."}
+                  {flaggedClauses.length
+                    ? "No flagged clauses for the selected filters. Review the summary below."
+                    : "No flagged clauses found. Review the summary below."}
                 </p>
               )}
 

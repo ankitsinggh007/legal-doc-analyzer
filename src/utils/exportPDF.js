@@ -26,6 +26,28 @@ function getBlockBodyText(block) {
     .trim();
 }
 
+function getBlockExportStatus(clause) {
+  switch (clause?.classification) {
+    case "clause_no_issue":
+      return {
+        label: "No notable issue detected",
+        style: "background:#ecfdf5;color:#166534;border:1px solid #a7f3d0;",
+      };
+    case "noise":
+      return {
+        label: "No clause detected",
+        style: "background:#f8fafc;color:#475569;border:1px dashed #cbd5e1;",
+      };
+    case "unclassified":
+      return {
+        label: "Could not classify. Verify manually",
+        style: "background:#fffbeb;color:#92400e;border:1px solid #fcd34d;",
+      };
+    default:
+      return null;
+  }
+}
+
 /**
  * Generates a print-ready PDF:
  * Header → Analyzed document blocks → Clause list → Risk summary
@@ -64,18 +86,28 @@ export async function exportPDF({
         clauseByBlockId.set(clause.blockId, clause);
       }
     });
+    const flaggedClauses = (clauses || []).filter(
+      (clause) => clause?.classification === "clause_flagged"
+    );
 
     const blockHtml = blocks
       .map((block) => {
         const clause = clauseByBlockId.get(block.blockId);
-        const colors = clause ? getClauseColor(clause.type) : null;
-        const style = clause
+        const isFlagged = clause?.classification === "clause_flagged";
+        const colors = isFlagged ? getClauseColor(clause.type) : null;
+        const style = isFlagged
           ? `background:${colors.bg};color:${colors.text};border:1px solid ${colors.border};`
           : "border:1px solid #e5e7eb;";
+        const status = getBlockExportStatus(clause);
         const bodyText = getBlockBodyText(block);
 
         return `
           <article class="block" style="${style}">
+            ${
+              status
+                ? `<div class="block-status" style="${status.style}">${escapeHtml(status.label)}</div>`
+                : ""
+            }
             <div class="block-label">${escapeHtml(block.sectionLabel || "Untitled block")}</div>
             ${
               bodyText
@@ -87,12 +119,12 @@ export async function exportPDF({
       })
       .join("");
 
-    const clauseCounts = (clauses || []).reduce((acc, c) => {
+    const clauseCounts = flaggedClauses.reduce((acc, c) => {
       acc[c.type] = (acc[c.type] || 0) + 1;
       return acc;
     }, {});
 
-    const clauseList = (clauses || [])
+    const clauseList = flaggedClauses
       .map((clause) => {
         const riskStyle = getRiskStyle(clause.risk);
         return `
@@ -138,6 +170,14 @@ export async function exportPDF({
           font-weight: 600;
           margin-bottom: 8px;
         }
+        .block-status {
+          display: inline-block;
+          margin-bottom: 10px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 600;
+        }
         .block-text {
           white-space: pre-wrap;
         }
@@ -181,14 +221,14 @@ export async function exportPDF({
       </div>
       <div class="section">
         <h2>Clause Details</h2>
-        <div class="clauses-list">${clauseList || "No clauses found."}</div>
+        <div class="clauses-list">${clauseList || "No flagged clauses found."}</div>
       </div>
       <div class="section">
         <h2>Risk Summary</h2>
         <p><strong>Detected:</strong> ${
           Object.entries(clauseCounts)
             .map(([type, count]) => `${count} ${type}`)
-            .join(", ") || "No clauses"
+            .join(", ") || "No flagged clauses"
         }.</p>
         <p class="summary-text">${
           summary ? escapeHtml(summary) : "No summary available."

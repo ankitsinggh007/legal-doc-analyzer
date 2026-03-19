@@ -39,27 +39,13 @@ export default async function handler(req, res) {
           ? block.sectionLabel.trim()
           : "",
       text: typeof block?.text === "string" ? block.text.trim() : "",
-      blockType:
-        typeof block?.blockType === "string" ? block.blockType.trim() : "",
     }))
     .filter((block) => block.blockId && block.text);
 
   if (!blocks.length) {
     return json(res, 400, { error: "Missing document blocks." });
   }
-
-  const inputText = blocks
-    .map((block) => {
-      const label = block.sectionLabel ? `${block.sectionLabel}\n` : "";
-      return `[${block.blockId}] ${label}${block.text}`;
-    })
-    .join("\n\n");
-
-  if (inputText.length > MAX_CHARS) {
-    return json(res, 400, {
-      error: `Document too long. Max ${MAX_CHARS} characters.`,
-    });
-  }
+  const allowedBlockIds = blocks.map((block) => block.blockId);
 
   const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim();
   const userAgent = req.headers["user-agent"] || "unknown";
@@ -89,21 +75,33 @@ export default async function handler(req, res) {
     });
   }
 
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return json(res, 500, { error: "Server misconfigured: missing API key." });
+  }
+
   const turnstileOk = await verifyTurnstile(turnstileToken, clientIp);
   if (!turnstileOk) {
     return json(res, 403, { error: "Turnstile verification failed." });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return json(res, 500, { error: "Server misconfigured: missing API key." });
+  const inputText = blocks
+    .map((block) => {
+      const label = block.sectionLabel ? `${block.sectionLabel}\n` : "";
+      return `[${block.blockId}] ${label}${block.text}`;
+    })
+    .join("\n\n");
+
+  if (inputText.length > MAX_CHARS) {
+    return json(res, 400, {
+      error: `Document too long. Max ${MAX_CHARS} characters.`,
+    });
   }
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const systemMessage =
     "You are a legal document analyzer. Return JSON only. Keep outputs concise and factual.";
   const baseUserMessage = buildAnalyzeBlocksPrompt(inputText);
-  const allowedBlockIds = blocks.map((block) => block.blockId);
 
   const callOpenAI = async (userMessage) => {
     const requestBody = {
