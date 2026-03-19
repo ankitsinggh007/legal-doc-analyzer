@@ -39,8 +39,6 @@ export default async function handler(req, res) {
           ? block.sectionLabel.trim()
           : "",
       text: typeof block?.text === "string" ? block.text.trim() : "",
-      blockType:
-        typeof block?.blockType === "string" ? block.blockType.trim() : "",
     }))
     .filter((block) => block.blockId && block.text);
 
