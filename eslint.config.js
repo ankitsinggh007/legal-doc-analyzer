@@ -26,6 +26,8 @@ export default [
         navigator: "readonly",
         localStorage: "readonly",
         console: "readonly",
+        AbortController: "readonly",
+
         setTimeout: "readonly",
         clearTimeout: "readonly",
         FileReader: "readonly",
