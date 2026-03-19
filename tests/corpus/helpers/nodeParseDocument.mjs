@@ -5,6 +5,9 @@ import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const MAX_DOC_CHARS = 60000;
+const STANDARD_FONT_DATA_URL = `${path.resolve(
+  "node_modules/pdfjs-dist/standard_fonts"
+)}${path.sep}`;
 
 function normalizePages(pages) {
   return pages.map((pageText) =>
@@ -17,7 +20,10 @@ function normalizePages(pages) {
 async function parsePdf(filePath) {
   const buffer = await fs.readFile(filePath);
   const data = new Uint8Array(buffer);
-  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const pdf = await pdfjsLib.getDocument({
+    data,
+    standardFontDataUrl: STANDARD_FONT_DATA_URL,
+  }).promise;
 
   const pages = [];
   let text = "";

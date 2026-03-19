@@ -45,7 +45,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       ...prettier.rules,
       "react/react-in-jsx-scope": "off",
-      "react/prop-types": "warn",
+      "react/prop-types": "off",
     },
 
     settings: {
