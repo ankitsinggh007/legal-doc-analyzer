@@ -49,7 +49,7 @@ const EXAMPLE_OUTPUT = `Example output:
 {
   "results": [
     {
-      "blockId": "b4",
+      "blockId": "b1",
       "classification": "clause_flagged",
       "clauseType": "Confidentiality",
       "riskLevel": "medium",
@@ -57,7 +57,7 @@ const EXAMPLE_OUTPUT = `Example output:
       "explanation": "The clause imposes confidentiality duties without clear carve-outs or limits."
     },
     {
-      "blockId": "b7",
+      "blockId": "b2",
       "classification": "clause_no_issue",
       "clauseType": "Term",
       "riskLevel": "none",
@@ -65,16 +65,177 @@ const EXAMPLE_OUTPUT = `Example output:
       "explanation": "No notable issue detected."
     },
     {
-      "blockId": "b11",
+      "blockId": "b3",
       "classification": "noise",
       "clauseType": "",
       "riskLevel": "none",
       "title": "",
       "explanation": "No clause detected."
+    },......
+  ],
+  "summary": "summary of all high and medium risks summary ."
+}`;
+
+const EXHAUSTIVE_RESPONSE_CONTRACT = `Return valid JSON only. Do not use markdown. Do not include any text before or after the JSON.
+
+Return exactly one JSON object with this shape:
+{
+  "results": [
+    {
+      "blockId": "exact block id from input",
+      "classification": "clause_flagged",
+      "clauseType": "string",
+      "riskLevel": "low | medium | high",
+      "title": "string",
+      "explanation": "string"
+    },
+    {
+      "blockId": "exact block id from input",
+      "classification": "clause_no_issue",
+      "clauseType": "string",
+      "riskLevel": "none"
+    },
+    {
+      "blockId": "exact block id from input",
+      "classification": "noise",
+      "riskLevel": "none"
+    }
+  ],
+  "summary": "short summary focused only on flagged clauses"
+}`;
+
+const EXHAUSTIVE_RULES = [
+  "Return exactly one result for every input block.",
+  "The number of results must equal the number of input blocks.",
+  "Do not omit any block.",
+  "Do not invent, merge, or duplicate blockIds.",
+  "Use clause_flagged only for substantive clauses with a concrete, notable legal or business concern, burden, ambiguity, or unusually one-sided obligation.",
+  "Do not use clause_flagged just because a clause is important, legally operative, or standard.",
+  "Use clause_no_issue for substantive clauses that appear standard, balanced, or non-problematic.",
+  "Use noise for non-substantive blocks such as headers, footers, signatures, witness details, page artifacts, or other non-clause administrative text.",
+  "For clause_flagged, clauseType, title, and explanation must be meaningful, and riskLevel must be low, medium, or high.",
+  "For clause_no_issue, include blockId, classification, clauseType, and riskLevel only.",
+  "For noise, include blockId, classification, and riskLevel only.",
+  "Be conservative when assigning clause_flagged.",
+  "Prefer clause_no_issue unless there is a clear reason to flag the clause.",
+  "Flag a clause only when there is a real concern such as unusual breadth, clear one-sidedness, strong penalty or liability exposure, vague or ambiguous obligation, operationally burdensome restriction, or material legal disadvantage.",
+  "If the clause is standard and commonly expected in this type of agreement, prefer clause_no_issue.",
+  "Clauses such as preamble, standard definitions, ordinary return or destruction obligations, governing law, authority to sign, relationship disclaimer, severability, entire agreement, and ordinary notice or termination mechanics should usually be clause_no_issue unless unusually drafted.",
+  "Keep the summary concise and focused only on flagged clauses. If none are flagged, say that no notable issues were detected.",
+].join("\n");
+
+const EXHAUSTIVE_EXAMPLE_OUTPUT = `Example exhaustive output:
+{
+  "results": [
+    {
+      "blockId": "b1",
+      "classification": "clause_no_issue",
+      "clauseType": "Preamble",
+      "riskLevel": "none"
+    },
+    {
+      "blockId": "b2",
+      "classification": "clause_flagged",
+      "clauseType": "Confidentiality",
+      "riskLevel": "medium",
+      "title": "Broad confidentiality obligation",
+      "explanation": "The clause imposes confidentiality duties without clear carve-outs or limits."
+    },
+    {
+      "blockId": "b3",
+      "classification": "noise",
+      "riskLevel": "none"
     }
   ],
   "summary": "The document contains one flagged confidentiality clause with medium risk."
 }`;
+
+export const ANALYZE_BLOCKS_EXHAUSTIVE_RESPONSE_FORMAT = {
+  type: "json_schema",
+  json_schema: {
+    name: "legal_block_analysis_exhaustive",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["results", "summary"],
+      properties: {
+        results: {
+          type: "array",
+          items: {
+            anyOf: [
+              {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "blockId",
+                  "classification",
+                  "clauseType",
+                  "riskLevel",
+                  "title",
+                  "explanation",
+                ],
+                properties: {
+                  blockId: { type: "string" },
+                  classification: {
+                    type: "string",
+                    enum: ["clause_flagged"],
+                  },
+                  clauseType: { type: "string" },
+                  riskLevel: {
+                    type: "string",
+                    enum: ["low", "medium", "high"],
+                  },
+                  title: { type: "string" },
+                  explanation: { type: "string" },
+                },
+              },
+              {
+                type: "object",
+                additionalProperties: false,
+                required: [
+                  "blockId",
+                  "classification",
+                  "clauseType",
+                  "riskLevel",
+                ],
+                properties: {
+                  blockId: { type: "string" },
+                  classification: {
+                    type: "string",
+                    enum: ["clause_no_issue"],
+                  },
+                  clauseType: { type: "string" },
+                  riskLevel: {
+                    type: "string",
+                    enum: ["none"],
+                  },
+                },
+              },
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["blockId", "classification", "riskLevel"],
+                properties: {
+                  blockId: { type: "string" },
+                  classification: {
+                    type: "string",
+                    enum: ["noise"],
+                  },
+                  riskLevel: {
+                    type: "string",
+                    enum: ["none"],
+                  },
+                },
+              },
+            ],
+          },
+        },
+        summary: { type: "string" },
+      },
+    },
+  },
+};
 
 function buildPromptBody(inputText) {
   return `Preprocessed legal document blocks are provided with stable block IDs in brackets like [b1].
@@ -86,6 +247,16 @@ ${CLASSIFICATION_RULES}
 Coverage rules:
 ${COVERAGE_RULES}
 ${EXAMPLE_OUTPUT}
+Blocks:
+"""${inputText}"""`;
+}
+
+function buildExhaustivePromptBody(inputText) {
+  return `Preprocessed legal document blocks are provided with stable block IDs in brackets like [b1].
+${EXHAUSTIVE_RESPONSE_CONTRACT}
+Rules:
+${EXHAUSTIVE_RULES}
+${EXHAUSTIVE_EXAMPLE_OUTPUT}
 Blocks:
 """${inputText}"""`;
 }
@@ -110,4 +281,26 @@ If a block is substantive with a notable concern, use clause_flagged.
 If a block is substantive with no notable issue, use clause_no_issue.
 If a block is not a substantive clause, use noise.
 Keep explanations to 1 sentence.`;
+}
+
+export function buildExhaustiveAnalyzeBlocksPrompt(inputText) {
+  return buildExhaustivePromptBody(inputText);
+}
+
+export function buildExhaustiveAnalyzeBlocksRetryPrompt(inputText, issue = "") {
+  const issueText = issue
+    ? `The previous response failed validation: ${issue}\n`
+    : "";
+
+  return `${buildExhaustivePromptBody(inputText)}
+
+${issueText}The previous response was incomplete or invalid.
+Return valid JSON only.
+Return exactly one result for every input block.
+The number of results must equal the number of input blocks.
+Do not omit any block.
+Do not repeat any blockId.
+Do not invent blockIds.
+For clause_no_issue, include only blockId, classification, clauseType, and riskLevel.
+For noise, include only blockId, classification, and riskLevel.`;
 }

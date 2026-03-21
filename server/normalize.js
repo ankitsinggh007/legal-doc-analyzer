@@ -25,7 +25,7 @@ function normalizeBlockId(value) {
 
 export function normalizeOutput(
   rawText,
-  { documentId = "", allowedBlockIds = [] } = {}
+  { documentId = "", allowedBlockIds = [], requireFullCoverage = false } = {}
 ) {
   const allowedIds = new Set(
     Array.isArray(allowedBlockIds) ? allowedBlockIds.filter(Boolean) : []
@@ -76,7 +76,7 @@ export function normalizeOutput(
 
     const blockId = normalizeBlockId(result.blockId);
     const rawClauseType = normalizeString(result.clauseType);
-    const explanation = normalizeString(result.explanation);
+    const rawExplanation = normalizeString(result.explanation);
     const rawTitle = normalizeString(result.title);
     const riskLevel = normalizeRiskLevel(result.riskLevel ?? result.riskFlag);
 
@@ -135,17 +135,9 @@ export function normalizeOutput(
       };
     }
 
-    if (!explanation) {
-      return {
-        documentId,
-        results: [],
-        summary: "",
-        validationError: `Model returned an empty explanation for ${blockId}.`,
-      };
-    }
-
     let clauseType = rawClauseType;
     let title = rawTitle;
+    let explanation = rawExplanation;
 
     if (classification === "clause_flagged") {
       if (!clauseType) {
@@ -178,9 +170,27 @@ export function normalizeOutput(
           };
         }
       }
+
+      if (!explanation) {
+        return {
+          documentId,
+          results: [],
+          summary: "",
+          validationError: `Model returned an empty explanation for flagged block ${blockId}.`,
+        };
+      }
     }
 
     if (classification === "clause_no_issue") {
+      if (!clauseType) {
+        return {
+          documentId,
+          results: [],
+          summary: "",
+          validationError: `Model returned an empty clauseType for clause_no_issue block ${blockId}.`,
+        };
+      }
+
       if (riskLevel !== "none") {
         return {
           documentId,
@@ -191,6 +201,7 @@ export function normalizeOutput(
       }
 
       title = "";
+      explanation = "";
     }
 
     if (classification === "noise") {
@@ -205,6 +216,7 @@ export function normalizeOutput(
 
       clauseType = "";
       title = "";
+      explanation = "";
     }
 
     seenBlockIds.add(blockId);
@@ -216,6 +228,22 @@ export function normalizeOutput(
       title,
       explanation,
     });
+  }
+
+  if (
+    requireFullCoverage &&
+    allowedIds.size > 0 &&
+    seenBlockIds.size !== allowedIds.size
+  ) {
+    const missingBlockIds = [...allowedIds].filter(
+      (blockId) => !seenBlockIds.has(blockId)
+    );
+    return {
+      documentId,
+      results: [],
+      summary: "",
+      validationError: `Model omitted blockIds: ${missingBlockIds.join(", ")}.`,
+    };
   }
 
   const summary = normalizeString(parsed?.summary);
