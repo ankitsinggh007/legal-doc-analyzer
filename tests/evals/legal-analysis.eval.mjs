@@ -12,12 +12,20 @@ import {
 } from "./helpers/scoreAnalysis.mjs";
 import { preprocessCorpusDocument } from "../corpus/helpers/preprocessCorpusDocument.mjs";
 import { normalizeOutput } from "../../server/normalize.js";
-import { buildAnalyzeBlocksPrompt } from "../../server/prompts/analyzeBlocksPrompt.js";
+import {
+  ANALYZE_BLOCKS_EXHAUSTIVE_RESPONSE_FORMAT,
+  buildExhaustiveAnalyzeBlocksPrompt,
+} from "../../server/prompts/analyzeBlocksPrompt.js";
 
 const evalDir = path.dirname(fileURLToPath(import.meta.url));
 const outputDir = path.join(evalDir, "output");
 const systemMessage =
   "You are a legal document analyzer. Return JSON only. Keep outputs concise and factual.";
+
+function estimateEvalMaxTokens(blockCount) {
+  const estimatedOutputTokens = blockCount * 65 + 180;
+  return Math.max(500, Math.min(2200, estimatedOutputTokens));
+}
 
 function getCliMode() {
   const modeArg = process.argv.find((arg) => arg.startsWith("--mode="));
@@ -42,8 +50,22 @@ function normalizeRiskLevel(value) {
 }
 
 function createMockResults(blocks) {
-  return blocks.slice(0, 4).map((block, index) => {
-    if (index === 0) {
+  return blocks.map((block, index) => {
+    const sourceText = `${block.sectionLabel || ""} ${block.text || ""}`.toLowerCase();
+
+    if (
+      sourceText.includes("witness") ||
+      sourceText.includes("signature") ||
+      sourceText.includes("owner tenant")
+    ) {
+      return {
+        blockId: block.blockId,
+        classification: "noise",
+        riskLevel: "none",
+      };
+    }
+
+    if (index % 5 === 0) {
       return {
         blockId: block.blockId,
         classification: "clause_flagged",
@@ -55,36 +77,20 @@ function createMockResults(blocks) {
       };
     }
 
-    if (index === 1) {
+    if (index % 5 === 1) {
       return {
         blockId: block.blockId,
         classification: "clause_no_issue",
         clauseType: "Term",
         riskLevel: "none",
-        title: "",
-        explanation: "No notable issue detected.",
-      };
-    }
-
-    if (index === 2) {
-      return {
-        blockId: block.blockId,
-        classification: "noise",
-        clauseType: "",
-        riskLevel: "none",
-        title: "",
-        explanation: "No clause detected.",
       };
     }
 
     return {
       blockId: block.blockId,
-      classification: "clause_flagged",
-      clauseType: "Confidentiality",
-      riskLevel: "low",
-      title: "Confidentiality obligation",
-      explanation:
-        "Restricts disclosure and use of confidential information shared under the agreement.",
+      classification: "clause_no_issue",
+      clauseType: "General Clause",
+      riskLevel: "none",
     };
   });
 }
@@ -145,14 +151,16 @@ function scoreRun({
     seen.add(blockId);
 
     if (!allowedBlockIds.has(blockId)) unknownBlockIds += 1;
-    if (!classification || !riskLevel || !explanation) invalidFieldCount += 1;
+    if (!classification || !riskLevel) invalidFieldCount += 1;
 
     if (classification === "clause_flagged") {
       flaggedCount += 1;
-      if (!clauseType || !title || riskLevel === "none") invalidFieldCount += 1;
+      if (!clauseType || !title || !explanation || riskLevel === "none") {
+        invalidFieldCount += 1;
+      }
     } else if (classification === "clause_no_issue") {
       noIssueCount += 1;
-      if (riskLevel !== "none") invalidFieldCount += 1;
+      if (!clauseType || riskLevel !== "none") invalidFieldCount += 1;
     } else if (classification === "noise") {
       noiseCount += 1;
       if (riskLevel !== "none") invalidFieldCount += 1;
@@ -211,9 +219,11 @@ async function runLiveAnalysis({ documentId, blocks }) {
   }
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const maxTokens = Number(process.env.OPENAI_EVAL_MAX_TOKENS) || 1000;
+  const maxTokens =
+    Number(process.env.OPENAI_EVAL_MAX_TOKENS) ||
+    estimateEvalMaxTokens(blocks.length);
   const inputText = buildInputText(blocks);
-  const userMessage = buildAnalyzeBlocksPrompt(inputText);
+  const userMessage = buildExhaustiveAnalyzeBlocksPrompt(inputText);
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -225,6 +235,7 @@ async function runLiveAnalysis({ documentId, blocks }) {
       model,
       temperature: 0,
       max_tokens: maxTokens,
+      response_format: ANALYZE_BLOCKS_EXHAUSTIVE_RESPONSE_FORMAT,
       messages: [
         { role: "system", content: systemMessage },
         { role: "user", content: userMessage },
@@ -241,6 +252,7 @@ async function runLiveAnalysis({ documentId, blocks }) {
   const normalized = normalizeOutput(rawText, {
     documentId,
     allowedBlockIds: blocks.map((block) => block.blockId),
+    requireFullCoverage: true,
   });
 
   return {

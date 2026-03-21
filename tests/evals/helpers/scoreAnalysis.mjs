@@ -13,8 +13,8 @@ export const ANALYSIS_RISK_LEVELS = Object.freeze([
 ]);
 
 export const DEFAULT_EVAL_THRESHOLDS = Object.freeze({
-  minCoveragePct: 80,
-  maxUnclassifiedPct: 20,
+  minCoveragePct: 100,
+  maxUnclassifiedPct: 0,
   requireSummary: true,
   allowDuplicateBlockIds: false,
   allowUnknownBlockIds: false,
