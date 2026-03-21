@@ -4,13 +4,19 @@ import { MAX_CHARS, RATE_LIMIT_MAX } from "../server/constants.js";
 import { json, readJson } from "../server/http.js";
 import { normalizeOutput } from "../server/normalize.js";
 import {
-  buildAnalyzeBlocksPrompt,
-  buildAnalyzeBlocksRetryPrompt,
+  ANALYZE_BLOCKS_EXHAUSTIVE_RESPONSE_FORMAT,
+  buildExhaustiveAnalyzeBlocksPrompt,
+  buildExhaustiveAnalyzeBlocksRetryPrompt,
 } from "../server/prompts/analyzeBlocksPrompt.js";
 import { checkRateLimit } from "../server/rateLimit.js";
 import { verifyTurnstile } from "../server/turnstile.js";
 
 const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 25000;
+
+function estimateMaxTokens(blockCount) {
+  const estimatedOutputTokens = blockCount * 65 + 180;
+  return Math.max(500, Math.min(2200, estimatedOutputTokens));
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -103,13 +109,15 @@ export default async function handler(req, res) {
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const systemMessage =
     "You are a legal document analyzer. Return JSON only. Keep outputs concise and factual.";
-  const baseUserMessage = buildAnalyzeBlocksPrompt(inputText);
+  const maxTokens = estimateMaxTokens(blocks.length);
+  const baseUserMessage = buildExhaustiveAnalyzeBlocksPrompt(inputText);
 
   const callOpenAI = async (userMessage) => {
     const requestBody = {
       model,
       temperature: 0,
-      max_tokens: 1000,
+      max_tokens: maxTokens,
+      response_format: ANALYZE_BLOCKS_EXHAUSTIVE_RESPONSE_FORMAT,
       messages: [
         {
           role: "system",
@@ -169,6 +177,7 @@ export default async function handler(req, res) {
       const normalized = normalizeOutput(raw || "", {
         documentId,
         allowedBlockIds,
+        requireFullCoverage: true,
       });
 
       if (!normalized.validationError) {
@@ -180,7 +189,7 @@ export default async function handler(req, res) {
 
     if (retryReason) {
       ({ aiRes, aiJson } = await callOpenAI(
-        buildAnalyzeBlocksRetryPrompt(inputText, retryReason)
+        buildExhaustiveAnalyzeBlocksRetryPrompt(inputText, retryReason)
       ));
       if (!aiRes.ok) {
         const msg = aiJson?.error?.message || "OpenAI request failed.";
@@ -200,6 +209,7 @@ export default async function handler(req, res) {
     const normalized = normalizeOutput(raw || "", {
       documentId,
       allowedBlockIds,
+      requireFullCoverage: true,
     });
 
     if (normalized.validationError) {
