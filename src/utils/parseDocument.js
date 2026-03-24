@@ -43,7 +43,7 @@ async function parsePDF(file) {
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
+      const content = await getPageTextContent(page);
 
       if (!content.items.length) nonTextFound = true;
 
@@ -96,6 +96,36 @@ async function parsePDF(file) {
   } catch (err) {
     throw new Error("Failed to parse PDF: " + err.message);
   }
+}
+
+async function getPageTextContent(page) {
+  if (typeof page.streamTextContent !== "function") {
+    return await page.getTextContent();
+  }
+
+  const reader = page.streamTextContent().getReader();
+  const textContent = {
+    items: [],
+    styles: Object.create(null),
+    lang: null,
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) break;
+      if (!value) continue;
+
+      textContent.lang ??= value.lang;
+      Object.assign(textContent.styles, value.styles);
+      textContent.items.push(...value.items);
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+
+  return textContent;
 }
 
 /* ------------------DOCX Parser--------------*/
