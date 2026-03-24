@@ -10,8 +10,8 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const maxDocChars = env.MAX_DOC_CHARS || "60000";
-  const maxUploadMb = env.MAX_UPLOAD_MB || "5";
+  const maxDocChars = env.VITE_MAX_DOC_CHARS || env.MAX_DOC_CHARS || "60000";
+  const maxUploadMb = env.VITE_MAX_UPLOAD_MB || env.MAX_UPLOAD_MB || "5";
 
   return {
     plugins: [react()],
