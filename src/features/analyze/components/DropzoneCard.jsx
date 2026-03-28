@@ -1,11 +1,18 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 export default function DropzoneCard({ onFileAccepted }) {
   const inputRef = useRef();
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState("");
   const [file, setFile] = useState(null);
+  const dropzoneRef = useRef();
+  const maxUploadMb = Number.parseFloat(
+    import.meta.env.VITE_MAX_UPLOAD_MB || "5"
+  );
 
+  useEffect(() => {
+    dropzoneRef?.current?.focus();
+  }, []);
   const handleFiles = (files) => {
     const selected = files[0];
     if (!selected) return;
@@ -15,14 +22,14 @@ export default function DropzoneCard({ onFileAccepted }) {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "text/plain",
     ];
-    const maxSize = 2 * 1024 * 1024;
+    const maxSize = maxUploadMb * 1024 * 1024;
 
     if (!validTypes.includes(selected.type))
       return setError("Only PDF, DOCX, or TXT files are allowed.");
 
     if (selected.size > maxSize)
       return setError(
-        "This document is too large to process. Please upload a shorter contract."
+        `This document is too large to process (max ${maxUploadMb} MB). Please upload a shorter contract.`
       );
 
     setError("");
@@ -32,6 +39,7 @@ export default function DropzoneCard({ onFileAccepted }) {
 
   return (
     <div
+      ref={dropzoneRef}
       role="button"
       tabIndex={0}
       aria-label="Upload file"

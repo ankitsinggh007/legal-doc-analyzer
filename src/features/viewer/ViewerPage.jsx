@@ -1,64 +1,224 @@
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAnalyze } from "@/context/AnalyzeContext";
 import { useNavigate } from "react-router-dom";
 import { Container } from "@/components/layout/Container";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { useState, useEffect, useMemo } from "react";
-import { highlightClauses } from "@/utils/highlightClauses";
 import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
+import { lazy, Suspense } from "react";
+import { HeaderBar } from "./components/HeaderBar";
+import {
+  DEFAULT_CLAUSE_TYPES,
+  getClauseColor,
+  getRiskStyle,
+} from "@/utils/clauseStyles";
+import Disclaimer from "@/components/Disclaimer";
 
-export function ViewerPage() {
+const ColorLegend = lazy(() => import("./components/ColorLegend"));
+const FilterTabs = lazy(() => import("./components/FilterTabs"));
+
+function getBlockBodyText(block) {
+  const sectionLabel = String(block?.sectionLabel || "").trim();
+  const text = String(block?.text || "").trim();
+
+  if (!sectionLabel || !text) {
+    return text;
+  }
+
+  if (!text.startsWith(sectionLabel)) {
+    return text;
+  }
+
+  return text
+    .slice(sectionLabel.length)
+    .replace(/^[\s.:;,-]+/, "")
+    .trim();
+}
+
+function getBlockTone(blockState) {
+  switch (blockState?.classification) {
+    case "clause_no_issue":
+      return {
+        className:
+          "border-emerald-200 bg-emerald-50/70 text-slate-800 dark:border-emerald-900/70 dark:bg-emerald-950/20 dark:text-slate-100",
+      };
+    case "noise":
+      return {
+        className:
+          "border-dashed border-slate-200 bg-slate-50/70 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
+      };
+    case "unclassified":
+      return {
+        className:
+          "border-amber-200 bg-amber-50/70 text-slate-800 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-slate-100",
+      };
+    default:
+      return {
+        className:
+          "border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
+      };
+  }
+}
+
+export default function ViewerPage() {
   const {
     uploadedFile,
-    parsedText,
+    preprocessResult,
     clauses,
     resetAnalysis,
     isHydrated,
     summary,
+    warning,
   } = useAnalyze();
-  const [selectedClause, setSelectedClause] = useState(null);
-
+  const [selectedClauseIndex, setSelectedClauseIndex] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [activeTypes, setActiveTypes] = useState(new Set());
   const navigate = useNavigate();
+  const documentBlocks = useMemo(
+    () =>
+      Array.isArray(preprocessResult?.blocks) ? preprocessResult.blocks : [],
+    [preprocessResult]
+  );
+  const blockMap = useMemo(
+    () => new Map(documentBlocks.map((block) => [block.blockId, block])),
+    [documentBlocks]
+  );
+  const viewerClauses = useMemo(() => {
+    if (!Array.isArray(clauses)) return [];
 
-  const [activeTypes, setActiveTypes] = useState(
-    new Set(["Termination", "Penalty", "Confidentiality"])
+    const clausesWithBlocks = clauses.filter(
+      (clause) =>
+        typeof clause?.blockId === "string" && blockMap.has(clause.blockId)
+    );
+
+    return clausesWithBlocks.length ? clausesWithBlocks : clauses;
+  }, [blockMap, clauses]);
+  const flaggedClauses = useMemo(
+    () =>
+      viewerClauses.filter(
+        (clause) => clause?.classification === "clause_flagged" && clause.type
+      ),
+    [viewerClauses]
   );
 
-  // Navigation guard
-  useEffect(() => {
-    // 🚫 Don't run until hydration is complete
-    if (isHydrated && !parsedText) navigate("/analyze");
-  }, [isHydrated, parsedText, navigate]);
-  // Reset selection on re-upload
-  useEffect(() => setSelectedClause(null), [parsedText]);
-  // Manage highlight glow & scroll
-  useEffect(() => {
-    document
-      .querySelectorAll(".highlight-active")
-      .forEach((el) => el.classList.remove("highlight-active"));
-    if (selectedClause) {
-      const idx = clauses.indexOf(selectedClause);
-      const el = document.querySelector(`[data-index="${idx}"]`);
-      if (el) {
-        console.log("i am selected", el);
-        el.classList.add("highlight-active");
-        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        window.scrollBy(0, -100); // keeps it below top bar
+  const clauseTypes = useMemo(() => {
+    const unique = Array.from(
+      new Set(flaggedClauses.map((clause) => clause.type).filter(Boolean))
+    );
+    return unique.length ? unique : DEFAULT_CLAUSE_TYPES;
+  }, [flaggedClauses]);
+
+  const clauseCounts = useMemo(() => {
+    const counts = {};
+    flaggedClauses.forEach((clause) => {
+      counts[clause.type] = (counts[clause.type] || 0) + 1;
+    });
+    return counts;
+  }, [flaggedClauses]);
+
+  const clauseIndexByBlockId = useMemo(() => {
+    const map = new Map();
+    flaggedClauses.forEach((clause, index) => {
+      if (
+        typeof clause?.blockId === "string" &&
+        activeTypes.has(clause.type) &&
+        !map.has(clause.blockId)
+      ) {
+        map.set(clause.blockId, index);
       }
-    }
-  }, [selectedClause, clauses]);
+    });
+    return map;
+  }, [activeTypes, flaggedClauses]);
 
-  //useMemo for highlightClauses call — avoids full re-render string rebuild on each toggle.
-  const highlightedHTML = useMemo(
-    () => highlightClauses(parsedText, clauses, activeTypes),
-    [parsedText, clauses, activeTypes]
+  const visibleClauses = useMemo(() => {
+    return flaggedClauses
+      .map((clause, idx) => ({ clause, idx }))
+      .filter(({ clause }) => activeTypes.has(clause.type));
+  }, [flaggedClauses, activeTypes]);
+  const blockStateById = useMemo(
+    () =>
+      new Map(
+        viewerClauses
+          .filter((clause) => typeof clause?.blockId === "string")
+          .map((clause) => [clause.blockId, clause])
+      ),
+    [viewerClauses]
   );
-  const toggleType = (type) => {
-    const next = new Set(activeTypes);
-    next.has(type) ? next.delete(type) : next.add(type);
-    setActiveTypes(next);
-  };
 
-  if (!parsedText) return null;
+  const selectedClause =
+    selectedClauseIndex !== null ? flaggedClauses[selectedClauseIndex] : null;
+  const selectedBlockId = selectedClause?.blockId || null;
+
+  const scrollToBlock = useCallback((blockId) => {
+    if (!blockId) return;
+    const el = document.querySelector(`[data-block-id="${blockId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    window.scrollBy(0, -80);
+  }, []);
+
+  const selectClause = useCallback(
+    (index) => {
+      setSelectedClauseIndex(index);
+      const clause = flaggedClauses[index];
+      if (clause?.blockId) {
+        scrollToBlock(clause.blockId);
+      }
+    },
+    [flaggedClauses, scrollToBlock]
+  );
+
+  const selectBlock = useCallback(
+    (blockId) => {
+      const clauseIndex = clauseIndexByBlockId.get(blockId);
+      if (clauseIndex === undefined) return;
+      setSelectedClauseIndex(clauseIndex);
+    },
+    [clauseIndexByBlockId]
+  );
+
+  const toggleType = useCallback((type) => {
+    setActiveTypes((prev) => {
+      const next = new Set(prev);
+      next.has(type) ? next.delete(type) : next.add(type);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!clauseTypes.length) return;
+    setActiveTypes((prev) => {
+      if (prev.size === 0) return new Set(clauseTypes);
+      const next = new Set(prev);
+      clauseTypes.forEach((type) => next.add(type));
+      return next;
+    });
+  }, [clauseTypes]);
+
+  useEffect(() => {
+    if (toast) {
+      const id = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(id);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (isHydrated && !documentBlocks.length) {
+      navigate("/analyze");
+    }
+  }, [documentBlocks.length, isHydrated, navigate]);
+
+  useEffect(() => {
+    setSelectedClauseIndex(null);
+  }, [preprocessResult]);
+
+  useEffect(() => {
+    if (selectedClauseIndex === null) return;
+    const clause = flaggedClauses[selectedClauseIndex];
+    if (!clause || !activeTypes.has(clause.type)) {
+      setSelectedClauseIndex(null);
+    }
+  }, [activeTypes, flaggedClauses, selectedClauseIndex]);
+
+  if (!documentBlocks.length) return null;
 
   return (
     <main
@@ -69,127 +229,226 @@ export function ViewerPage() {
         <div className="flex items-center justify-center h-screen text-slate-500 dark:text-slate-400">
           <p className="animate-pulse">Restoring session…</p>
         </div>
-      ) : !parsedText ? null : (
+      ) : !documentBlocks.length ? null : (
         <Container className="max-w-[90%] lg:max-w-[85%] xl:max-w-[80%] py-6 space-y-6">
-          {/* 🔹 Top Bar */}
-          <header className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
-            <div className="flex items-center gap-3">
-              <h1
-                className="font-semibold text-sm sm:text-lg max-w-[150px] sm:max-w-[300px] truncate"
-                title={uploadedFile?.name || "Untitled Document"}
-              >
-                {uploadedFile?.name || "Untitled Document"}
-              </h1>
+          <HeaderBar
+            fileName={uploadedFile?.name}
+            resetAnalysis={resetAnalysis}
+            navigate={navigate}
+            blocks={documentBlocks}
+            clauses={flaggedClauses}
+            summary={summary}
+            setToast={setToast}
+          />
 
-              <button
-                onClick={() => {
-                  resetAnalysis();
-                  navigate("/analyze");
-                }}
-                className="text-primary-600 hover:underline text-sm"
-              >
-                Re-upload
-              </button>
-              <button
-                onClick={resetAnalysis}
-                className="text-red-600 hover:underline text-sm ml-3"
-              >
-                Clear All Data
-              </button>
-            </div>
-            <ThemeToggle />
-          </header>
+          {warning && (
+            <p className="text-amber-600 text-sm" role="status">
+              {warning}
+            </p>
+          )}
 
-          {/* 🔹 Dual Panel Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Panel: Contract Viewer */}
             <section
               className="lg:col-span-2 p-4 rounded-md dark:border-slate-700 border border-slate-200
              dark:bg-slate-800 overflow-y-auto max-h-[85vh]"
-              aria-label="Contract Text Viewer"
-              onClick={(e) => {
-                const el = e.target.closest("[data-index]");
-                if (!el) return;
-                const idx = Number(el.dataset.index);
-                setSelectedClause(clauses[idx]);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  const el = e.target.closest("[data-index]");
-                  if (el) setSelectedClause(clauses[Number(el.dataset.index)]);
-                }
-              }}
+              aria-label="Document Block Viewer"
             >
-              <div
-                className="whitespace-pre-wrap text-left leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: highlightedHTML }}
-              />
+              <div className="space-y-4 text-left">
+                {documentBlocks.map((block) => {
+                  const blockState = blockStateById.get(block.blockId) || {
+                    blockId: block.blockId,
+                    classification: "unclassified",
+                    clauseType: "",
+                    risk: "none",
+                    riskLevel: "none",
+                    title: "",
+                    explanation:
+                      "Could not classify this block. Verify manually.",
+                  };
+                  const linkedClauseIndex = clauseIndexByBlockId.get(
+                    block.blockId
+                  );
+                  const linkedClause =
+                    linkedClauseIndex !== undefined
+                      ? viewerClauses[linkedClauseIndex]
+                      : null;
+                  const isFlagged =
+                    blockState.classification === "clause_flagged";
+                  const isInteractive = isFlagged && Boolean(linkedClause);
+                  const isSelected = selectedBlockId === block.blockId;
+                  const colors = isFlagged
+                    ? getClauseColor(
+                        linkedClause?.type || blockState.type || "Other"
+                      )
+                    : null;
+                  const tone = getBlockTone(blockState);
+                  const blockBodyText = getBlockBodyText(block);
+                  const statusLabel =
+                    blockState.classification === "clause_no_issue"
+                      ? "No notable issue detected"
+                      : blockState.classification === "noise"
+                        ? "No clause detected"
+                        : blockState.classification === "unclassified"
+                          ? "Could not classify. Verify manually"
+                          : "";
+
+                  return (
+                    <article
+                      key={block.blockId}
+                      data-block-id={block.blockId}
+                      data-block-classification={blockState.classification}
+                      role={isInteractive ? "button" : undefined}
+                      tabIndex={isInteractive ? 0 : -1}
+                      className={`min-w-0 rounded-2xl border px-5 py-4 transition-all outline-none ${tone.className} ${
+                        isInteractive ? "cursor-pointer shadow-sm" : ""
+                      } ${
+                        isSelected
+                          ? "ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-800"
+                          : ""
+                      }`}
+                      style={
+                        isFlagged
+                          ? {
+                              backgroundColor: colors.bg,
+                              color: colors.text,
+                              borderColor: colors.border,
+                            }
+                          : undefined
+                      }
+                      onClick={() => selectBlock(block.blockId)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        event.preventDefault();
+                        selectBlock(block.blockId);
+                      }}
+                    >
+                      <div className="space-y-3">
+                        {statusLabel ? (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="inline-flex items-center rounded-full border border-current/20 bg-white/60 px-2.5 py-1 text-xs font-medium dark:bg-slate-900/40">
+                              {statusLabel}
+                            </span>
+                          </div>
+                        ) : null}
+                        <h3 className="text-lg font-semibold leading-7">
+                          {block.sectionLabel}
+                        </h3>
+                        {blockBodyText ? (
+                          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-base leading-8">
+                            {blockBodyText}
+                          </p>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </section>
 
-            {/* Right Panel: Insights Sidebar */}
             <aside
               className="p-4 rounded-md border border-slate-200 dark:border-slate-700
-             bg-slate-50 dark:bg-slate-800 sticky top-4 h-fit"
+             bg-slate-50 dark:bg-slate-800 sticky top-4 h-fit space-y-4"
               aria-label="Insights Sidebar"
             >
-              <h2 className="font-semibold text-lg mb-3">Insights</h2>
-
-              {/* 🔹 Color legend */}
-              <div className="flex flex-col gap-1 mb-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-sm bg-red-200 dark:bg-red-900"></span>
-                  Termination
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-sm bg-amber-200 dark:bg-amber-900"></span>
-                  Penalty
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-sm bg-blue-200 dark:bg-blue-900"></span>
-                  Confidentiality
-                </div>
+              <div>
+                <h2 className="font-semibold text-lg">Insights</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Flagged clauses, risks, and linked block analysis.
+                </p>
               </div>
 
-              {/* 🔹 Filter buttons */}
-              <nav className="flex flex-wrap gap-2 mb-4" role="tablist">
-                {["Termination", "Penalty", "Confidentiality"].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => toggleType(tab)}
-                    className={`px-3 py-1 text-sm rounded-md border transition-colors duration-150
-          border-slate-300 dark:border-slate-600
-          hover:bg-primary-50 dark:hover:bg-slate-700
-          focus:bg-primary-100 dark:focus:bg-slate-700
-          focus-visible:ring-2 focus-visible:ring-primary-500
-          ${
-            activeTypes.has(tab)
-              ? "bg-primary-100 dark:bg-slate-700 font-semibold text-primary-700 dark:text-primary-300"
-              : "opacity-70"
-          }`}
-                    role="tab"
-                    aria-pressed={activeTypes.has(tab)}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </nav>
+              <Suspense fallback={null}>
+                <ColorLegend types={clauseTypes} />
+                <FilterTabs
+                  types={clauseTypes}
+                  counts={clauseCounts}
+                  activeTypes={activeTypes}
+                  toggleType={toggleType}
+                />
+              </Suspense>
 
-              {selectedClause ? (
-                <div className="p-3 rounded-md bg-slate-100 dark:bg-slate-700 mt-3 text-sm">
-                  <p className="font-semibold mb-1 text-primary-600">
-                    {selectedClause.type} Clause
-                  </p>
-                  <p>{selectedClause.explanation}</p>
+              {visibleClauses.length ? (
+                <div className="space-y-3">
+                  {visibleClauses.map(({ clause, idx }) => {
+                    const riskStyle = getRiskStyle(clause.risk);
+                    const isActive = selectedClauseIndex === idx;
+                    return (
+                      <div
+                        key={`${clause.type}-${idx}`}
+                        role="button"
+                        tabIndex={0}
+                        className={`rounded-md border p-3 text-sm transition-shadow outline-none
+                          ${
+                            isActive
+                              ? "border-primary-500 shadow-sm"
+                              : "border-slate-200 dark:border-slate-700"
+                          }`}
+                        onClick={() => selectClause(idx)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ")
+                            return;
+                          event.preventDefault();
+                          selectClause(idx);
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-primary-700 dark:text-primary-300">
+                            {clause.type}
+                          </span>
+                          <span
+                            className="text-xs font-medium px-2 py-0.5 rounded-full border"
+                            style={{
+                              backgroundColor: riskStyle.bg,
+                              color: riskStyle.text,
+                              borderColor: riskStyle.border,
+                            }}
+                          >
+                            {clause.risk || "medium"}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-slate-600 dark:text-slate-300">
+                          {clause.explanation || "No explanation provided."}
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Click a clause in the document to view details here.
+                  {flaggedClauses.length
+                    ? "No flagged clauses for the selected filters. Review the summary below."
+                    : "No flagged clauses found. Review the summary below."}
                 </p>
               )}
+
+              {!viewerClauses.length && clauses.length > 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Stored analysis data is missing block linkage. Re-run analysis
+                  from the upload flow to use the new block-based viewer.
+                </p>
+              )}
+
               <RiskSummaryPanel summary={summary} />
+              <Disclaimer />
             </aside>
           </div>
         </Container>
+      )}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {toast && <span>{toast.msg}</span>}
+      </div>
+      {toast && (
+        <div
+          role="status"
+          className={`fixed bottom-4 right-6 px-4 z-[9999] py-2 rounded-md shadow-lg text-sm font-medium transition-all duration-300
+      ${
+        toast.type === "success"
+          ? "bg-green-100 text-green-800 border border-green-300"
+          : "bg-red-100 text-red-800 border border-red-300"
+      }`}
+        >
+          {toast.msg}
+        </div>
       )}
     </main>
   );

@@ -1,23 +1,17 @@
-import { useEffect, useState } from "react";
+import { useTheme } from "@/context/ThemeContext";
 
 export const ThemeToggle = () => {
-  const [dark, setDark] = useState(() => localStorage.theme === "dark");
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.theme = dark ? "dark" : "light";
-  }, [dark]);
+  const { isDark, setIsDark } = useTheme();
 
   return (
     <button
-      onClick={() => setDark(!dark)}
+      onClick={() => setIsDark(!isDark)}
       className="p-2 rounded-md border border-slate-300 dark:border-slate-700
              hover:bg-slate-100 dark:hover:bg-slate-800
-             focus-visible:ring-2 focus-visible:ring-primary-500
-             transition"
+             focus-visible:ring-2 focus-visible:ring-primary-500 transition"
       aria-label="Toggle theme"
     >
-      {dark ? "🌙" : "☀️"}
+      {isDark ? "🌙" : "☀️"}
     </button>
   );
 };

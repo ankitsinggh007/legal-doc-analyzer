@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 
-export default function ErrorCard({ message, onRetry }) {
+export default function ErrorCard({ message, onRetry, onReset }) {
   return (
     <div
       role="alert"
@@ -13,17 +13,30 @@ export default function ErrorCard({ message, onRetry }) {
       <p className="text-slate-600 dark:text-slate-300 mt-1 text-sm">
         {message}
       </p>
-      <button
-        onClick={onRetry}
-        className="mt-4 bg-rose-600 text-white px-4 py-2 rounded-md hover:bg-rose-700"
-      >
-        Retry
-      </button>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-4 bg-rose-600 text-white px-4 py-2 rounded-md hover:bg-rose-700"
+        >
+          Retry
+        </button>
+      )}
+      {onReset && (
+        <button
+          onClick={onReset}
+          className={`block mx-auto text-rose-700 hover:underline text-sm ${
+            onRetry ? "mt-3" : "mt-4"
+          }`}
+        >
+          Upload another document
+        </button>
+      )}
     </div>
   );
 }
 
 ErrorCard.propTypes = {
   message: PropTypes.string.isRequired,
-  onRetry: PropTypes.func.isRequired,
+  onRetry: PropTypes.func,
+  onReset: PropTypes.func,
 };

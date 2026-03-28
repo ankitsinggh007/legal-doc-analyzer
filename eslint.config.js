@@ -26,6 +26,8 @@ export default [
         navigator: "readonly",
         localStorage: "readonly",
         console: "readonly",
+        AbortController: "readonly",
+
         setTimeout: "readonly",
         clearTimeout: "readonly",
         FileReader: "readonly",
@@ -45,7 +47,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       ...prettier.rules,
       "react/react-in-jsx-scope": "off",
-      "react/prop-types": "warn",
+      "react/prop-types": "off",
     },
 
     settings: {

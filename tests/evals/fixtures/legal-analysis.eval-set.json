@@ -1,0 +1,28 @@
+{
+  "name": "legal-analysis-core",
+  "description": "Small fixed evaluation set for prompt and schema tuning of block-level legal analysis.",
+  "documents": [
+    {
+      "id": "rental_agreement",
+      "fixturePath": "tests/fixtures/corpus/RENTAL AGREEMENT.pdf",
+      "purpose": "Coverage-heavy document with many numbered substantive clauses."
+    },
+    {
+      "id": "non_disclosure_agreement",
+      "fixturePath": "tests/fixtures/corpus/NON_DISCLOSURE_AGREEMENT.pdf",
+      "purpose": "Cleanly structured agreement for baseline schema and classification behavior."
+    },
+    {
+      "id": "ex_99_d_2",
+      "fixturePath": "tests/fixtures/corpus/EX-99.(d)(2).pdf",
+      "purpose": "Real-world noisy agreement for noise-vs-clause behavior and footer/header robustness."
+    }
+  ],
+  "thresholds": {
+    "minCoveragePct": 100,
+    "maxUnclassifiedPct": 0,
+    "requireSummary": true,
+    "allowDuplicateBlockIds": false,
+    "allowUnknownBlockIds": false
+  }
+}

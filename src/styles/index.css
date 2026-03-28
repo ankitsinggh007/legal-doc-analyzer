@@ -85,3 +85,13 @@ a:focus-visible {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
   outline: none;
 }
+/* 🌗 Smooth theme transition for all surfaces */
+html,
+body,
+[class*="bg-"],
+[class*="border-"],
+[class*="text-"] {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}

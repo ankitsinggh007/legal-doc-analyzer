@@ -1,0 +1,57 @@
+import { memo } from "react";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+
+const HeaderBar = memo(function HeaderBar({
+  fileName,
+  resetAnalysis,
+  navigate,
+  blocks,
+  clauses,
+  summary,
+  setToast,
+}) {
+  const handleExport = async () => {
+    const { exportPDF } = await import("@/utils/exportPDF");
+
+    await exportPDF({
+      fileName,
+      blocks,
+      clauses,
+      summary,
+      setToast,
+    });
+  };
+
+  return (
+    <header className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
+      <div className="flex items-center gap-3">
+        <h1
+          className="font-semibold text-sm sm:text-lg max-w-[150px] sm:max-w-[300px] truncate"
+          title={fileName || "Untitled Document"}
+        >
+          {fileName || "Untitled Document"}
+        </h1>
+        <button
+          aria-label="Re-upload a new file"
+          onClick={() => {
+            resetAnalysis();
+            navigate("/analyze");
+          }}
+          className="text-primary-600 hover:underline text-sm"
+        >
+          Re-upload
+        </button>
+        <button
+          aria-label="Export analysis as PDF"
+          onClick={handleExport}
+          className="text-green-600 hover:underline text-sm ml-3"
+        >
+          Export PDF
+        </button>
+      </div>
+
+      <ThemeToggle />
+    </header>
+  );
+});
+export { HeaderBar };

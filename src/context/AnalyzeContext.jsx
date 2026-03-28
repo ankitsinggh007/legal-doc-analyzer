@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { saveState, loadState, clearState } from "@/utils/storage";
+import { createPreprocessResult } from "@/lib/document-processing/preprocessResult";
 import PropTypes from "prop-types";
 
 const STORAGE_KEY = "legalDocAnalyzerState";
@@ -9,6 +10,7 @@ export const AnalyzeProvider = ({ children }) => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [parsedText, setParsedText] = useState(null);
   const [warning, setWarning] = useState(null);
+  const [preprocessResult, setPreprocessResult] = useState(null);
   const [clauses, setClauses] = useState([]);
   const [summary, setSummary] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -20,6 +22,11 @@ export const AnalyzeProvider = ({ children }) => {
       if (saved.uploadedFile) setUploadedFile(saved.uploadedFile);
       setParsedText(saved.parsedText);
       setWarning(saved.warning);
+      setPreprocessResult(
+        saved.preprocessResult
+          ? createPreprocessResult(saved.preprocessResult)
+          : null
+      );
       setClauses(saved.clauses || []);
       setSummary(saved.summary || "");
     }
@@ -42,17 +49,19 @@ export const AnalyzeProvider = ({ children }) => {
         uploadedFile: safeFileInfo,
         parsedText,
         warning,
+        preprocessResult,
         clauses,
         summary,
       });
     }
-  }, [uploadedFile, parsedText, warning, clauses, summary]);
+  }, [uploadedFile, parsedText, warning, preprocessResult, clauses, summary]);
 
   // ✅ Reset + clear
   const resetAnalysis = () => {
     setUploadedFile(null);
     setParsedText(null);
     setWarning(null);
+    setPreprocessResult(null);
     setClauses([]);
     setSummary("");
     clearState(STORAGE_KEY);
@@ -64,6 +73,7 @@ export const AnalyzeProvider = ({ children }) => {
         uploadedFile,
         parsedText,
         warning,
+        preprocessResult,
         clauses,
         summary,
         isHydrated,
@@ -71,6 +81,7 @@ export const AnalyzeProvider = ({ children }) => {
         setSummary,
         setUploadedFile,
         setParsedText,
+        setPreprocessResult,
         resetAnalysis,
         setWarning,
       }}
