@@ -65,12 +65,10 @@ export async function exportPDF({
       throw new Error("No document blocks to export.");
     }
 
-    // ✅ Force light mode during export
     const htmlEl = document.documentElement;
     const wasDark = htmlEl.classList.contains("dark");
     if (wasDark) htmlEl.classList.remove("dark");
 
-    // 🔹 Format date
     const dateStr = date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",

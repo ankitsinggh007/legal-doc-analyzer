@@ -8,7 +8,7 @@ import { Container } from "../../components/layout/Container";
 import UploadHeader from "./components/UploadHeader";
 import DropzoneCard from "./components/DropzoneCard";
 import LoadingCard from "./components/LoadingCard";
-import ErrorCard from "./components/ErrorCard"; //
+import ErrorCard from "./components/ErrorCard";
 import PreprocessPreviewCard from "./components/PreprocessPreviewCard";
 import parseDocument from "../../utils/parseDocument";
 import Disclaimer from "@/components/Disclaimer";
@@ -97,13 +97,19 @@ export default function AnalyzePage() {
   }, [requiresTurnstile, showTurnstile, turnstileSiteKey]);
 
   const runAnalysis = async ({ file, documentId, blocks }) => {
-    const cacheKey = getCacheKey(file);
-    const cached = getCachedResult(cacheKey);
+    const cacheKey = file ? getCacheKey(file) : null;
+    const cached = cacheKey ? getCachedResult(cacheKey) : null;
 
     if (cached && Array.isArray(cached.clauses)) {
       setClauses(cached.clauses);
       setSummary(cached.summary || "");
       return;
+    }
+
+    if (!documentId || !Array.isArray(blocks) || !blocks.length) {
+      throw new Error(
+        "Missing preprocessed document state. Please upload the document again."
+      );
     }
 
     if (!useMock && !turnstileToken) {
@@ -123,10 +129,12 @@ export default function AnalyzePage() {
 
     setClauses(analysis.clauses || []);
     setSummary(analysis.summary || "");
-    setCachedResult(cacheKey, {
-      clauses: analysis.clauses || [],
-      summary: analysis.summary || "",
-    });
+    if (cacheKey) {
+      setCachedResult(cacheKey, {
+        clauses: analysis.clauses || [],
+        summary: analysis.summary || "",
+      });
+    }
   };
 
   const handleFileAccepted = async (file) => {
@@ -178,7 +186,7 @@ export default function AnalyzePage() {
   };
 
   const handleContinue = async () => {
-    if (!lastFile || !parsedText) {
+    if (!parsedText || !preprocessResult?.documentId) {
       reset();
       return;
     }
@@ -187,7 +195,7 @@ export default function AnalyzePage() {
     setErrorPhase(null);
     try {
       await runAnalysis({
-        file: lastFile,
+        file: lastFile || uploadedFile,
         documentId: preprocessResult?.documentId,
         blocks: preprocessResult?.blocks || [],
       });

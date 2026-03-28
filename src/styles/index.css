@@ -26,7 +26,6 @@ a:focus-visible {
 }
 
 @layer base {
-  /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -45,7 +44,7 @@ a:focus-visible {
     background: #475569; /* slate-600 */
   }
 }
-/* 🔹 Clause highlight colors */
+
 .highlight-termination {
   background-color: #fecaca; /* red-200 */
   transition: box-shadow 0.15s ease-in-out;
@@ -59,7 +58,6 @@ a:focus-visible {
   transition: box-shadow 0.15s ease-in-out;
 }
 
-/* Dark mode equivalents */
 .dark .highlight-termination {
   background-color: #7f1d1d; /* red-900 */
 }
@@ -70,7 +68,6 @@ a:focus-visible {
   background-color: #1e3a8a; /* blue-900 */
 }
 
-/* Hover & focus feedback */
 .highlight-termination:hover,
 .highlight-penalty:hover,
 .highlight-confidentiality:hover,
@@ -85,7 +82,7 @@ a:focus-visible {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
   outline: none;
 }
-/* 🌗 Smooth theme transition for all surfaces */
+
 html,
 body,
 [class*="bg-"],

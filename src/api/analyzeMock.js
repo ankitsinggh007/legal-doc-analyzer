@@ -2,7 +2,6 @@ import { mapAnalysisResultsToClauses } from "@/utils/mapAnalysisResults";
 
 export async function analyzeMock({ documentId, blocks = [] }) {
   // Simulate processing delay
-  console.log("hi");
   await new Promise((res) => setTimeout(res, 1200));
   const sourceBlocks = Array.isArray(blocks) ? blocks.slice(0, 4) : [];
   const results = sourceBlocks.map((block, index) => {

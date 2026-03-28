@@ -46,7 +46,7 @@ export default function DropzoneCard({ onFileAccepted }) {
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          inputRef.current?.click(); // open file dialog
+          inputRef.current?.click();
         }
       }}
       className={`w-full max-w-content rounded-md border-2 border-dashed
@@ -106,5 +106,5 @@ export default function DropzoneCard({ onFileAccepted }) {
   );
 }
 DropzoneCard.propTypes = {
-  onFileAccepted: PropTypes.func, // ✅ add this
+  onFileAccepted: PropTypes.func,
 };
