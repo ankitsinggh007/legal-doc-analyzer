@@ -5,11 +5,7 @@ import { Container } from "@/components/layout/Container";
 import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
 import { lazy, Suspense } from "react";
 import { HeaderBar } from "./components/HeaderBar";
-import {
-  DEFAULT_CLAUSE_TYPES,
-  getClauseColor,
-  getRiskStyle,
-} from "@/utils/clauseStyles";
+import { getClauseColor, getRiskStyle } from "@/utils/clauseStyles";
 import Disclaimer from "@/components/Disclaimer";
 
 const ColorLegend = lazy(() => import("./components/ColorLegend"));
@@ -103,7 +99,7 @@ export default function ViewerPage() {
     const unique = Array.from(
       new Set(flaggedClauses.map((clause) => clause.type).filter(Boolean))
     );
-    return unique.length ? unique : DEFAULT_CLAUSE_TYPES;
+    return unique;
   }, [flaggedClauses]);
 
   const clauseCounts = useMemo(() => {
@@ -358,13 +354,17 @@ export default function ViewerPage() {
               </div>
 
               <Suspense fallback={null}>
-                <ColorLegend types={clauseTypes} />
-                <FilterTabs
-                  types={clauseTypes}
-                  counts={clauseCounts}
-                  activeTypes={activeTypes}
-                  toggleType={toggleType}
-                />
+                {flaggedClauses.length ? (
+                  <>
+                    <ColorLegend types={clauseTypes} />
+                    <FilterTabs
+                      types={clauseTypes}
+                      counts={clauseCounts}
+                      activeTypes={activeTypes}
+                      toggleType={toggleType}
+                    />
+                  </>
+                ) : null}
               </Suspense>
 
               {visibleClauses.length ? (
