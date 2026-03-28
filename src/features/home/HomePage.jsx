@@ -1,4 +1,3 @@
-// src/features/home/HomePage.jsx
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useEffect, useRef } from "react";
@@ -16,12 +15,10 @@ export default function HomePage() {
       className="min-h-screen flex flex-col items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors"
       aria-label="Landing Page"
     >
-      {/* 🔹 Top Bar */}
       <header className="w-full flex justify-end p-4">
         <ThemeToggle />
       </header>
 
-      {/* 🔹 Hero Section */}
       <section className="flex flex-col items-center text-center px-6">
         <h1 className="text-4xl sm:text-5xl font-bold mb-4 tracking-tight">
           AI-powered{" "}
@@ -41,7 +38,6 @@ export default function HomePage() {
         <Disclaimer className="mt-4" />
       </section>
 
-      {/* 🔹 Feature Row */}
       <section
         aria-labelledby="features-heading"
         className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center px-8 py-16 max-w-4xl"
@@ -82,7 +78,6 @@ export default function HomePage() {
         ))}
       </section>
 
-      {/* 🔹 Footer */}
       <footer className="w-full text-center py-4 text-sm border-t border-slate-200 dark:border-slate-700">
         <p>
           © {new Date().getFullYear()} Legal Document Analyzer —{" "}

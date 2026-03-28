@@ -15,7 +15,6 @@ export const AnalyzeProvider = ({ children }) => {
   const [summary, setSummary] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // ✅ Rehydrate from localStorage (on mount)
   useEffect(() => {
     const saved = loadState(STORAGE_KEY);
     if (saved && saved.parsedText) {
@@ -33,10 +32,9 @@ export const AnalyzeProvider = ({ children }) => {
     setIsHydrated(true);
   }, []);
 
-  // ✅ Auto-save whenever state changes
   useEffect(() => {
     if (parsedText || clauses.length > 0) {
-      // ✅ store file info safely (not the full File object)
+      // Persist only file metadata, not the File object itself.
       const safeFileInfo = uploadedFile
         ? {
             name: uploadedFile.name,
@@ -56,7 +54,6 @@ export const AnalyzeProvider = ({ children }) => {
     }
   }, [uploadedFile, parsedText, warning, preprocessResult, clauses, summary]);
 
-  // ✅ Reset + clear
   const resetAnalysis = () => {
     setUploadedFile(null);
     setParsedText(null);

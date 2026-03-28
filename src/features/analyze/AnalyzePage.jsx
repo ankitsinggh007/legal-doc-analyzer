@@ -8,7 +8,7 @@ import { Container } from "../../components/layout/Container";
 import UploadHeader from "./components/UploadHeader";
 import DropzoneCard from "./components/DropzoneCard";
 import LoadingCard from "./components/LoadingCard";
-import ErrorCard from "./components/ErrorCard"; //
+import ErrorCard from "./components/ErrorCard";
 import PreprocessPreviewCard from "./components/PreprocessPreviewCard";
 import parseDocument from "../../utils/parseDocument";
 import Disclaimer from "@/components/Disclaimer";
