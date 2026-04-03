@@ -119,7 +119,7 @@ Weaker on:
 
 ## Stack
 
-- React 19
+- React
 - Vite
 - Tailwind CSS
 - React Router
