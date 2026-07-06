@@ -39,6 +39,16 @@ export function buildSampleAnalysis(preprocessResult) {
 
   const results = [
     {
+      blockId: findBlock("1. Services")?.blockId,
+      classification: "clause_no_issue",
+      clauseType: "Services",
+      riskLevel: "none",
+      riskFlag: "none",
+      title: "",
+      explanation:
+        "The services clause describes implementation, support, and advisory services without a notable risk flag.",
+    },
+    {
       blockId: findBlock("2. Fees and Payment")?.blockId,
       classification: "clause_flagged",
       clauseType: "Payment",
@@ -87,6 +97,26 @@ export function buildSampleAnalysis(preprocessResult) {
       title: "",
       explanation:
         "The clause includes reasonable safeguards and prompt notice after confirmed unauthorized access.",
+    },
+    {
+      blockId: findBlock("5. Intellectual Property")?.blockId,
+      classification: "clause_no_issue",
+      clauseType: "Intellectual Property",
+      riskLevel: "none",
+      riskFlag: "none",
+      title: "",
+      explanation:
+        "The clause separates customer-owned materials from provider background technology and assigns customer-specific deliverables after payment.",
+    },
+    {
+      blockId: findBlock("8. Governing Law")?.blockId,
+      classification: "clause_no_issue",
+      clauseType: "Governing Law",
+      riskLevel: "none",
+      riskFlag: "none",
+      title: "",
+      explanation:
+        "The clause identifies California law and a specific venue for disputes.",
     },
   ].filter((result) => result.blockId);
 
