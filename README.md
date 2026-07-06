@@ -27,13 +27,15 @@ Screenshots:
 ## What it does
 
 - accepts `PDF`, `DOCX`, and `TXT`
+- includes a one-click sample contract demo for quick review without requiring an upload
 - parses the document in the browser
 - extracts clause-like blocks before AI analysis
 - shows a preprocessing preview with:
   - quality status
   - warning signals
   - extracted block preview
-- runs AI analysis on the extracted blocks
+- runs AI analysis on uploaded documents after preprocessing
+- uses local fixture text and local fixture results for the sample demo path
 - classifies every block as:
   - `clause_flagged`
   - `clause_no_issue`
@@ -73,7 +75,7 @@ This is not a legal reasoning engine. It is a frontend-heavy document review flo
 
 ## Current review model
 
-The backend returns one result for every extracted block.
+For uploaded documents, the backend returns one result for every extracted block.
 
 Example shape:
 
@@ -119,6 +121,10 @@ Frontend behavior:
   - labeled as `No clause detected`
 - `unclassified`
   - frontend fallback if a block is missing from the result
+
+The sample contract demo does not call OpenAI, Turnstile, Upstash, or
+`/api/analyze`. It is a local fixture that reuses the same preprocessing,
+viewer, and export UI so reviewers can inspect the workflow immediately.
 
 ## Scope
 
@@ -254,7 +260,7 @@ At deploy time:
 - local mobile testing of Turnstile is awkward because hostname rules matter
 - large documents can occasionally take longer to analyze than smaller ones
 
-## If I had more time
+## Next improvements
 
 - improve repeated-header/footer cleanup before block extraction
 - add a small deployment checklist with screenshots
