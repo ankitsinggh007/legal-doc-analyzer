@@ -242,10 +242,10 @@ export default function ViewerPage() {
             </p>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:items-stretch">
             <section
               className="lg:col-span-2 p-4 rounded-md dark:border-slate-700 border border-slate-200
-             dark:bg-slate-800 overflow-y-auto max-h-[85vh]"
+             dark:bg-slate-800 overflow-y-auto lg:min-h-[85vh] lg:max-h-[85vh]"
               aria-label="Document Block Viewer"
             >
               <div className="space-y-4 text-left">
@@ -342,7 +342,7 @@ export default function ViewerPage() {
 
             <aside
               className="p-4 rounded-md border border-slate-200 dark:border-slate-700
-             bg-slate-50 dark:bg-slate-800 sticky top-4 h-fit space-y-4"
+             bg-slate-50 dark:bg-slate-800 space-y-4 lg:sticky lg:top-4 lg:min-h-[85vh] lg:max-h-[85vh] lg:overflow-y-auto"
               aria-label="Insights Sidebar"
             >
               <div>

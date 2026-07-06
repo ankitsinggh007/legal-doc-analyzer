@@ -41,6 +41,7 @@ export const AnalyzeProvider = ({ children }) => {
             size: uploadedFile.size,
             type: uploadedFile.type,
             lastModified: uploadedFile.lastModified || 0,
+            isDemo: Boolean(uploadedFile.isDemo),
           }
         : null;
 

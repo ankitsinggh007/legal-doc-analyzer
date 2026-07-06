@@ -17,11 +17,22 @@ import {
 } from "@/lib/document-processing/preprocessResult";
 import { evaluateDocumentQuality } from "@/lib/document-processing/qualityGate";
 import { extractBlocks } from "@/lib/document-processing/extractBlocks";
+import {
+  buildSampleAnalysis,
+  SAMPLE_CONTRACT_FILE,
+  SAMPLE_CONTRACT_TEXT,
+} from "./sampleContractDemo";
 
 function mergeWarnings(...messages) {
   return Array.from(
     new Set(messages.map((message) => message?.trim()).filter(Boolean))
   ).join(" ");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export default function AnalyzePage() {
@@ -54,6 +65,7 @@ export default function AnalyzePage() {
     !useMock &&
     requiresTurnstile &&
     (status === "ready" || (status === "error" && errorPhase === "analysis"));
+  const activeFile = lastFile || uploadedFile;
 
   useEffect(() => {
     if (status === "idle" && preprocessResult && parsedText) {
@@ -95,6 +107,11 @@ export default function AnalyzePage() {
   }, [requiresTurnstile, showTurnstile, turnstileSiteKey]);
 
   const runAnalysis = async ({ file, documentId, blocks }) => {
+    if (file?.isDemo) {
+      await wait(1100);
+      return;
+    }
+
     const cacheKey = file ? getCacheKey(file) : null;
     const cached = cacheKey ? getCachedResult(cacheKey) : null;
 
@@ -183,6 +200,41 @@ export default function AnalyzePage() {
     }
   };
 
+  const handleSampleSelected = async () => {
+    resetAnalysis();
+    setStatus("preprocessing");
+    setErrorMsg("");
+    setErrorPhase(null);
+    setTurnstileError("");
+    setTurnstileToken("");
+
+    try {
+      await wait(900);
+      const documentId = createDocumentId();
+      const blocks = extractBlocks(SAMPLE_CONTRACT_TEXT);
+      const nextPreprocessResult = evaluateDocumentQuality({
+        text: SAMPLE_CONTRACT_TEXT,
+        pages: [SAMPLE_CONTRACT_TEXT],
+        documentId,
+        blocks,
+      });
+      const sampleAnalysis = buildSampleAnalysis(nextPreprocessResult);
+
+      setLastFile(SAMPLE_CONTRACT_FILE);
+      setUploadedFile(SAMPLE_CONTRACT_FILE);
+      setParsedText(SAMPLE_CONTRACT_TEXT);
+      setWarning(null);
+      setPreprocessResult(nextPreprocessResult);
+      setClauses(sampleAnalysis.clauses);
+      setSummary(sampleAnalysis.summary);
+      setStatus("ready");
+    } catch (err) {
+      setErrorPhase("preprocess");
+      setErrorMsg(err.message || "Unexpected sample document error.");
+      setStatus("error");
+    }
+  };
+
   const handleContinue = async () => {
     if (!parsedText || !preprocessResult?.documentId) {
       reset();
@@ -238,7 +290,10 @@ export default function AnalyzePage() {
             </div>
           )}
           {status === "idle" && (
-            <DropzoneCard onFileAccepted={handleFileAccepted} />
+            <DropzoneCard
+              onFileAccepted={handleFileAccepted}
+              onSampleSelected={handleSampleSelected}
+            />
           )}
           {status === "preprocessing" && (
             <LoadingCard
@@ -255,7 +310,12 @@ export default function AnalyzePage() {
               blocks={preprocessResult.blocks}
               onContinue={handleContinue}
               onReset={reset}
-              disabled={!useMock && requiresTurnstile && !turnstileToken}
+              disabled={
+                !activeFile?.isDemo &&
+                !useMock &&
+                requiresTurnstile &&
+                !turnstileToken
+              }
             />
           )}
           {status === "analyzing" && (
@@ -272,6 +332,7 @@ export default function AnalyzePage() {
             />
           )}
           {status === "ready" &&
+            !activeFile?.isDemo &&
             !useMock &&
             requiresTurnstile &&
             !turnstileToken && (
