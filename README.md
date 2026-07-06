@@ -4,6 +4,26 @@ A contract review app that parses a document into clause-like blocks, runs AI an
 
 This project is intentionally narrow. It is built around structured agreements and a block-first review flow, not around trying to produce a single all-knowing legal summary.
 
+## Demo
+
+Live:
+
+- [legal-doc-analyzer-livid.vercel.app](https://legal-doc-analyzer-livid.vercel.app/)
+
+Screenshots:
+
+### Preprocess preview
+
+![Preprocess preview](assets/readme/preprocess-preview.png)
+
+### Viewer
+
+![Viewer](assets/readme/viewer-flagged.png)
+
+### Quality gate rejection
+
+![Quality gate rejection](assets/readme/quality-gate-rejection.png)
+
 ## What it does
 
 - accepts `PDF`, `DOCX`, and `TXT`

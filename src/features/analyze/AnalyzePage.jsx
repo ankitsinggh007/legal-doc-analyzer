@@ -11,7 +11,6 @@ import LoadingCard from "./components/LoadingCard";
 import ErrorCard from "./components/ErrorCard";
 import PreprocessPreviewCard from "./components/PreprocessPreviewCard";
 import parseDocument from "../../utils/parseDocument";
-import Disclaimer from "@/components/Disclaimer";
 import {
   createDocumentId,
   PREPROCESS_QUALITY,
@@ -44,7 +43,6 @@ export default function AnalyzePage() {
     setClauses,
     setSummary,
     resetAnalysis,
-    warning,
     parsedText,
     preprocessResult,
   } = useAnalyze();
@@ -228,8 +226,7 @@ export default function AnalyzePage() {
     <main className="min-h-[85vh] flex flex-col justify-center px-4 sm:px-6 md:px-8">
       <Container>
         <section className="flex flex-col items-center gap-8 text-center">
-          <UploadHeader />
-          <Disclaimer className="max-w-lg" />
+          {status === "idle" && <UploadHeader />}
           {showTurnstile && (
             <div className="w-full max-w-md">
               <div ref={turnstileRef} />
@@ -243,14 +240,6 @@ export default function AnalyzePage() {
           {status === "idle" && (
             <DropzoneCard onFileAccepted={handleFileAccepted} />
           )}
-          {warning &&
-            preprocessResult &&
-            status !== "idle" &&
-            status !== "error" && (
-              <p className="text-amber-600 text-sm" role="status">
-                {warning}
-              </p>
-            )}
           {status === "preprocessing" && (
             <LoadingCard
               title="Preprocessing document…"

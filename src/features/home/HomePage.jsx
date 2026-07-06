@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useEffect, useRef } from "react";
-import Disclaimer from "@/components/Disclaimer";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -12,7 +11,7 @@ export default function HomePage() {
   return (
     <main
       id="main"
-      className="min-h-screen flex flex-col items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors"
+      className="min-h-[calc(100vh-3.25rem)] flex flex-col items-center justify-between bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors"
       aria-label="Landing Page"
     >
       <header className="w-full flex justify-end p-4">
@@ -35,7 +34,6 @@ export default function HomePage() {
         >
           Get Started
         </button>
-        <Disclaimer className="mt-4" />
       </section>
 
       <section
@@ -78,19 +76,6 @@ export default function HomePage() {
         ))}
       </section>
 
-      <footer className="w-full text-center py-4 text-sm border-t border-slate-200 dark:border-slate-700">
-        <p>
-          © {new Date().getFullYear()} Legal Document Analyzer —{" "}
-          <a
-            href="https://github.com/ankitsinggh007/legal-doc-analyzer"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary-600 hover:underline"
-          >
-            GitHub
-          </a>
-        </p>
-      </footer>
     </main>
   );
 }
