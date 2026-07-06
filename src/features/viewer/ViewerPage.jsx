@@ -6,7 +6,6 @@ import { RiskSummaryPanel } from "./components/RiskSummaryPanel";
 import { lazy, Suspense } from "react";
 import { HeaderBar } from "./components/HeaderBar";
 import { getClauseColor, getRiskStyle } from "@/utils/clauseStyles";
-import Disclaimer from "@/components/Disclaimer";
 
 const ColorLegend = lazy(() => import("./components/ColorLegend"));
 const FilterTabs = lazy(() => import("./components/FilterTabs"));
@@ -429,7 +428,6 @@ export default function ViewerPage() {
               )}
 
               <RiskSummaryPanel summary={summary} />
-              <Disclaimer />
             </aside>
           </div>
         </Container>
